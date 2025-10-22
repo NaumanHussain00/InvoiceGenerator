@@ -1,31 +1,60 @@
 import { type Request, type Response } from "express";
 import prisma from "../config/db.js";
+import ResponseEntity from "../utils/ResponseEntity.js";
 
+// Get All Customers
 export const getAllCustomers = async (_req: Request, res: Response) => {
   try {
     const customers = await prisma.customer.findMany();
-    return res.json(customers);
+    const response = new ResponseEntity(
+      customers,
+      "Customers retrieved successfully",
+      200
+    );
+    return res.status(200).json(response);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
+    const response = new ResponseEntity(null, "Internal server error", 500);
+    return res.status(500).json(response);
   }
 };
 
+// Create a New Customer
 export const createCustomer = async (req: Request, res: Response) => {
   const { name, firm, phone } = req.body;
 
   // Validate required fields
   if (!name || typeof name !== "string" || !name.trim()) {
-    return res.status(400).json({ error: "name is required" });
+    const response = new ResponseEntity(null, "Name is Required", 400);
+    return res.status(400).json(response);
   }
   if (!firm || typeof firm !== "string" || !firm.trim()) {
-    return res.status(400).json({ error: "firm is required" });
+    const response = new ResponseEntity(null, "Firm is Required", 400);
+    return res.status(400).json(response);
   }
   if (!phone || typeof phone !== "string" || !phone.trim()) {
-    return res.status(400).json({ error: "phone is required" });
+    const response = new ResponseEntity(null, "Phone is Required", 400);
+    return res.status(400).json(response);
   }
 
   try {
+    // Check if phone already exists
+    const existingCustomer = await prisma.customer.findFirst({
+      where: { phone: phone.trim() },
+    });
+
+    if (existingCustomer) {
+      const response = new ResponseEntity(
+        existingCustomer,
+        `Customer with Phone Number ${phone.trim()} Already Exists: ${
+          existingCustomer.name
+        }`,
+        409
+      );
+
+      return res.status(409).json(response);
+    }
+
     const customer = await prisma.customer.create({
       data: {
         name: name.trim(),
@@ -33,32 +62,55 @@ export const createCustomer = async (req: Request, res: Response) => {
         phone: phone.trim(),
       },
     });
-    return res.status(201).json(customer);
+
+    const response = new ResponseEntity(
+      customer,
+      "Customer Created Successfully",
+      201
+    );
+    return res.status(201).json(response);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
+    const response = new ResponseEntity(null, "Internal Server Error", 500);
+    return res.status(500).json(response);
   }
 };
 
+// Get Customer by ID
 export const getCustomerById = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  if (!Number.isInteger(id))
-    return res.status(400).json({ error: "invalid id" });
+  if (!Number.isInteger(id)) {
+    const response = new ResponseEntity(null, "Invalid ID", 400);
+    return res.status(400).json(response);
+  }
 
   try {
     const customer = await prisma.customer.findUnique({ where: { id } });
-    if (!customer) return res.status(404).json({ error: "Customer not found" });
-    return res.json(customer);
+    if (!customer) {
+      const response = new ResponseEntity(null, "Customer not Found", 404);
+      return res.status(404).json(response);
+    }
+
+    const response = new ResponseEntity(
+      customer,
+      "Customer Retrieved Successfully",
+      200
+    );
+    return res.status(200).json(response);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
+    const response = new ResponseEntity(null, "Internal Server Error", 500);
+    return res.status(500).json(response);
   }
 };
 
+// Update Customer
 export const updateCustomer = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  if (!Number.isInteger(id))
-    return res.status(400).json({ error: "invalid id" });
+  if (!Number.isInteger(id)) {
+    const response = new ResponseEntity(null, "Invalid ID", 400);
+    return res.status(400).json(response);
+  }
 
   const { name, firm, phone } = req.body;
   const data: Record<string, any> = {};
@@ -69,34 +121,56 @@ export const updateCustomer = async (req: Request, res: Response) => {
     data.phone = phone === null ? null : String(phone).trim();
 
   if (Object.keys(data).length === 0) {
-    return res.status(400).json({ error: "no fields to update" });
+    const response = new ResponseEntity(null, "No Fields to Update", 400);
+    return res.status(400).json(response);
   }
 
   try {
     const existing = await prisma.customer.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: "Customer not found" });
+    if (!existing) {
+      const response = new ResponseEntity(null, "Customer not Found", 404);
+      return res.status(404).json(response);
+    }
 
     const updated = await prisma.customer.update({ where: { id }, data });
-    return res.json(updated);
+    const response = new ResponseEntity(
+      updated,
+      "Customer Updated Successfully",
+      200
+    );
+    return res.status(200).json(response);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
+    const response = new ResponseEntity(null, "Internal Server Error", 500);
+    return res.status(500).json(response);
   }
 };
 
+// Delete Customer
 export const deleteCustomer = async (req: Request, res: Response) => {
   const id = Number(req.params.id);
-  if (!Number.isInteger(id))
-    return res.status(400).json({ error: "invalid id" });
+  if (!Number.isInteger(id)) {
+    const response = new ResponseEntity(null, "Invalid ID", 400);
+    return res.status(400).json(response);
+  }
 
   try {
     const existing = await prisma.customer.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: "Customer not found" });
+    if (!existing) {
+      const response = new ResponseEntity(null, "Customer Not Found", 404);
+      return res.status(404).json(response);
+    }
 
-    await prisma.customer.delete({ where: { id } });
-    return res.status(204).send();
+    const deletedCustomer = await prisma.customer.delete({ where: { id } });
+    const response = new ResponseEntity(
+      deletedCustomer,
+      "Customer Deleted Successfully",
+      204
+    );
+    return res.status(204).json(response);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
+    const response = new ResponseEntity(null, "Internal Server Error", 500);
+    return res.status(500).json(response);
   }
 };
