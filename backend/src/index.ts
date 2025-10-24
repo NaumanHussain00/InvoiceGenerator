@@ -6,8 +6,10 @@ app.use(express.json());
 
 // Import the router using the .js extension so ts-node/esm can resolve it
 import customerRoutes from "./routes/customer.routes.js";
+import productRoutes from "./routes/product.routes.js";
 
 app.use("/customers", customerRoutes);
+app.use("/products", productRoutes);
 
 // Start the server
 const PORT = process.env.PORT ?? 3000;

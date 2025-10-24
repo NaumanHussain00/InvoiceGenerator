@@ -233,6 +233,136 @@ DELETE /customers/:id
 No Content
 ```
 
+### Product Endpoints
+
+#### 1. Get All Products
+
+```http
+GET /products
+```
+
+**Response (200)**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Item A",
+      "subCategory": "Category X",
+      "price": 99.99,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "message": "Products retrieved successfully",
+  "statusCode": 200
+}
+```
+
+#### 2. Create Product
+
+```http
+POST /products
+Content-Type: application/json
+```
+
+**Request Body**
+
+```json
+{
+  "name": "Item A",
+  "subCategory": "Category X",
+  "price": 99.99
+}
+```
+
+**Response (201)**
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "Item A",
+    "subCategory": "Category X",
+    "price": 99.99,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  },
+  "message": "Product Created Successfully",
+  "statusCode": 201
+}
+```
+
+#### 3. Get Product by ID
+
+```http
+GET /products/:id
+```
+
+**Response (200)**
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "Item A",
+    "subCategory": "Category X",
+    "price": 99.99,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  },
+  "message": "Product Retrieved Successfully",
+  "statusCode": 200
+}
+```
+
+#### 4. Update Product
+
+```http
+PUT /products/:id
+Content-Type: application/json
+```
+
+**Request Body** (all fields optional)
+
+```json
+{
+  "name": "Item A+",
+  "subCategory": "Category Y",
+  "price": 120.5
+}
+```
+
+**Response (200)**
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "Item A+",
+    "subCategory": "Category Y",
+    "price": 120.5,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T14:25:00.000Z"
+  },
+  "message": "Product Updated Successfully",
+  "statusCode": 200
+}
+```
+
+#### 5. Delete Product
+
+```http
+DELETE /products/:id
+```
+
+**Response (204)**
+
+```
+No Content
+```
+
 ## 🧪 Testing with cURL
 
 ```bash
@@ -254,6 +384,26 @@ curl -X PUT http://localhost:3000/customers/1 \
 
 # Delete customer
 curl -X DELETE http://localhost:3000/customers/1
+
+# Products
+# Get all products
+curl http://localhost:3000/products
+
+# Create a product
+curl -X POST http://localhost:3000/products \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Item A","subCategory":"Category X","price":99.99}'
+
+# Get product by ID
+curl http://localhost:3000/products/1
+
+# Update product
+curl -X PUT http://localhost:3000/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{"price":120.5}'
+
+# Delete product
+curl -X DELETE http://localhost:3000/products/1
 ```
 
 ## 🗄️ Database Schema
@@ -267,6 +417,15 @@ model Customer {
   amount    Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String
+  subCategory String?
+  price       Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime? @updatedAt
 }
 ```
 
