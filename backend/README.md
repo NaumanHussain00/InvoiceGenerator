@@ -64,22 +64,26 @@ A RESTful API for managing customers and invoices built with Node.js, Express, T
 ```
 backend/
 ├── prisma/
-│   ├── schema.prisma       # Database schema
-│   └── migrations/         # Database migrations
+│   ├── schema.prisma             # Database schema (Customer, Product)
+│   └── migrations/               # Database migrations
 ├── src/
 │   ├── config/
-│   │   └── db.ts          # Prisma client configuration
+│   │   └── db.ts                 # Prisma client configuration
 │   ├── controllers/
-│   │   └── customer.controllers.ts  # Business logic
+│   │   ├── customer.controllers.ts
+│   │   └── product.controllers.ts
 │   ├── routes/
-│   │   └── customer.routes.ts       # API routes
+│   │   ├── customer.routes.ts
+│   │   └── product.routes.ts
 │   ├── utils/
-│   │   └── ResponseEntity.ts        # Response wrapper
-│   └── index.ts           # Entry point
-├── .env                   # Environment variables
+│   │   └── ResponseEntity.ts     # Response wrapper
+│   └── index.ts                  # App entry, registers routes
+├── .env                          # Environment variables
 ├── package.json
 └── tsconfig.json
 ```
+
+Note: Project runs in ESM mode (NodeNext). Import .ts files using .js extension at runtime (e.g., import x from "./file.js").
 
 ## 🔌 API Endpoints
 
