@@ -71,10 +71,12 @@ backend/
 │   │   └── db.ts                 # Prisma client configuration
 │   ├── controllers/
 │   │   ├── customer.controllers.ts
-│   │   └── product.controllers.ts
+│   │   ├── product.controllers.ts
+│   │   └── credit.controllers.ts
 │   ├── routes/
 │   │   ├── customer.routes.ts
-│   │   └── product.routes.ts
+│   │   ├── product.routes.ts
+│   │   └── credit.routes.ts
 │   ├── utils/
 │   │   └── ResponseEntity.ts     # Response wrapper
 │   └── index.ts                  # App entry, registers routes
@@ -363,6 +365,136 @@ DELETE /products/:id
 No Content
 ```
 
+### Credit Endpoints
+
+Credits represent customer payments applied against their outstanding balance. Creating a credit lowers the customer's balance. Voiding a credit reverts the balance back to the previous value.
+
+Base path: `/credits`
+
+#### 1. Create Credit (apply a payment)
+
+```http
+POST /credits/customer/:customerId
+Content-Type: application/json
+```
+
+Request Body
+
+```json
+{
+  "amountPaidByCustomer": 150.0
+}
+```
+
+Behavior
+
+- Looks up the customer's current `balance`.
+- Computes `finalBalance = previousBalance - amountPaidByCustomer`.
+- Updates the customer's `balance` atomically within a transaction.
+- Creates a `Credit` record with `previousBalance`, `amountPaidByCustomer`, and `finalBalance`.
+- Returns the created credit including `customer` details.
+
+Response (201)
+
+```json
+{
+  "data": {
+    "id": 12,
+    "customerId": 1,
+    "previousBalance": 500.0,
+    "amountPaidByCustomer": 150.0,
+    "finalBalance": 350.0,
+    "status": "ACTIVE",
+    "createdAt": "2025-10-16T19:59:00.000Z",
+    "updatedAt": null,
+    "customer": {
+      "id": 1,
+      "name": "John Doe",
+      "phone": "123-456-7890",
+      "firm": "Acme Corp",
+      "balance": 350.0,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2025-10-16T19:59:00.000Z"
+    }
+  },
+  "message": "Credit created successfully",
+  "statusCode": 201
+}
+```
+
+Error Responses
+
+- 404 if the customer doesn't exist.
+- 500 on unexpected errors.
+
+#### 2. Get All Credits
+
+```http
+GET /credits
+```
+
+Response (200)
+
+```json
+{
+  "data": [
+    {
+      "id": 12,
+      "customerId": 1,
+      "previousBalance": 500.0,
+      "amountPaidByCustomer": 150.0,
+      "finalBalance": 350.0,
+      "status": "ACTIVE",
+      "createdAt": "2025-10-16T19:59:00.000Z",
+      "updatedAt": null,
+      "customer": {
+        "id": 1,
+        "name": "John Doe",
+        "phone": "123-456-7890",
+        "firm": "Acme Corp",
+        "balance": 350.0
+      }
+    }
+  ],
+  "message": "Credits retrieved successfully",
+  "statusCode": 200
+}
+```
+
+#### 3. Get Credit by ID
+
+```http
+GET /credits/:id
+```
+
+Returns the credit with its `customer`.
+
+#### 4. Get Credits by Customer ID
+
+```http
+GET /credits/customer/:customerId
+```
+
+Returns all credits for a specific customer, including `customer` info.
+
+#### 5. Void Credit (revert a payment)
+
+```http
+PUT /credits/void/:id
+```
+
+Behavior
+
+- Fetches the credit by `id`. If it's already `VOID`, returns a 400 with message "Credit Already Voided".
+- In a transaction: sets the customer's `balance` back to the credit's `previousBalance`, and updates the credit `status` to `VOID`.
+- Returns the original credit data with a success message.
+
+Responses
+
+- 200 "Credit Voided Successfully" when the credit is voided.
+- 404 if the credit doesn't exist.
+- 400 if the credit is already void.
+
 ## 🧪 Testing with cURL
 
 ```bash
@@ -404,27 +536,66 @@ curl -X PUT http://localhost:3000/products/1 \
 
 # Delete product
 curl -X DELETE http://localhost:3000/products/1
+
+# Credits
+# Create a credit (apply payment of 150 to customer 1)
+curl -X POST http://localhost:3000/credits/customer/1 \
+  -H "Content-Type: application/json" \
+  -d '{"amountPaidByCustomer":150}'
+
+# Get all credits
+curl http://localhost:3000/credits
+
+# Get credit by id
+curl http://localhost:3000/credits/12
+
+# Get all credits for a customer
+curl http://localhost:3000/credits/customer/1
+
+# Void a credit by id
+curl -X PUT http://localhost:3000/credits/void/12
 ```
 
 ## 🗄️ Database Schema
 
 ```prisma
 model Customer {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  phone     String   @unique
-  firm      String   @unique
+  phone     String    @unique
+  firm      String    @unique
   balance   Float
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+  Credit    Credit[]
 }
 
 model Product {
-  id          Int       @id @default(autoincrement())
-  name        String
-  price       Float
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime? @updatedAt
+  id        Int       @id @default(autoincrement())
+  name      String
+  price     Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Credit {
+  id         Int      @id @default(autoincrement())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  previousBalance      Float // Balance before payment
+  amountPaidByCustomer Float // Payment made by customer
+  finalBalance         Float // New balance after payment
+
+  status CreditStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+enum CreditStatus {
+  ACTIVE
+  VOID
 }
 ```
 
@@ -482,6 +653,20 @@ Nauman Hussain
 ## 🐛 Known Issues
 
 - None currently
+
+### Credit route matching edge case
+
+- In Express, generic routes like `GET /credits/:id` can shadow more specific routes like `GET /credits/customer/:customerId` if declared first.
+- Ensure the more specific path is registered before the generic `/:id` path (or use a distinct path like `/credits/by-customer/:customerId`).
+
+Example preferred order:
+
+```ts
+// More specific first
+router.get("/customer/:customerId", getCreditsByCustomerId);
+// Then generic by id
+router.get("/:id", getCreditById);
+```
 
 ## 📮 Contact
 

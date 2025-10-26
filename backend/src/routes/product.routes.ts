@@ -1,5 +1,4 @@
 import express, { Router } from "express";
-import { type Request, type Response } from "express";
 
 import {
   getAllProducts,
