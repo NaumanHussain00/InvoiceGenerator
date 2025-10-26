@@ -21,7 +21,7 @@ export const getAllCustomers = async (_req: Request, res: Response) => {
 
 // Create a New Customer
 export const createCustomer = async (req: Request, res: Response) => {
-  const { name, firm, phone } = req.body;
+  const { name, firm, phone, balance } = req.body;
 
   // Validate required fields
   if (!name || typeof name !== "string" || !name.trim()) {
@@ -34,6 +34,10 @@ export const createCustomer = async (req: Request, res: Response) => {
   }
   if (!phone || typeof phone !== "string" || !phone.trim()) {
     const response = new ResponseEntity(null, "Phone is Required", 400);
+    return res.status(400).json(response);
+  }
+  if (balance === undefined || typeof balance !== "number") {
+    const response = new ResponseEntity(null, "Balance is Required", 400);
     return res.status(400).json(response);
   }
 
@@ -60,6 +64,7 @@ export const createCustomer = async (req: Request, res: Response) => {
         name: name.trim(),
         firm: firm.trim(),
         phone: phone.trim(),
+        balance,
       },
     });
 
@@ -112,13 +117,14 @@ export const updateCustomer = async (req: Request, res: Response) => {
     return res.status(400).json(response);
   }
 
-  const { name, firm, phone } = req.body;
+  const { name, firm, phone, balance } = req.body;
   const data: Record<string, any> = {};
   if (name !== undefined) data.name = String(name).trim();
   if (firm !== undefined)
     data.firm = firm === null ? null : String(firm).trim();
   if (phone !== undefined)
     data.phone = phone === null ? null : String(phone).trim();
+  if (balance !== undefined) data.balance = Number(balance);
 
   if (Object.keys(data).length === 0) {
     const response = new ResponseEntity(null, "No Fields to Update", 400);

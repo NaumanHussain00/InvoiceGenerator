@@ -111,7 +111,7 @@ GET /customers
       "name": "John Doe",
       "phone": "123-456-7890",
       "firm": "Acme Corp",
-      "amount": 0,
+      "balance": 0,
       "createdAt": "2024-01-15T10:30:00.000Z",
       "updatedAt": "2024-01-15T10:30:00.000Z"
     }
@@ -134,7 +134,8 @@ Content-Type: application/json
 {
   "name": "John Doe",
   "phone": "123-456-7890",
-  "firm": "Acme Corp"
+  "firm": "Acme Corp",
+  "balance": 0
 }
 ```
 
@@ -147,7 +148,7 @@ Content-Type: application/json
     "name": "John Doe",
     "phone": "123-456-7890",
     "firm": "Acme Corp",
-    "amount": 0,
+    "balance": 0,
     "createdAt": "2024-01-15T10:30:00.000Z",
     "updatedAt": "2024-01-15T10:30:00.000Z"
   },
@@ -180,7 +181,7 @@ GET /customers/:id
   "name": "John Doe",
   "phone": "123-456-7890",
   "firm": "Acme Corp",
-  "amount": 0,
+  "balance": 0,
   "createdAt": "2024-01-15T10:30:00.000Z",
   "updatedAt": "2024-01-15T10:30:00.000Z"
 }
@@ -207,7 +208,8 @@ Content-Type: application/json
 {
   "name": "Jane Doe",
   "phone": "098-765-4321",
-  "firm": "New Corp"
+  "firm": "New Corp",
+  "balance": 100
 }
 ```
 
@@ -219,7 +221,7 @@ Content-Type: application/json
   "name": "Jane Doe",
   "phone": "098-765-4321",
   "firm": "New Corp",
-  "amount": 0,
+  "balance": 100,
   "createdAt": "2024-01-15T10:30:00.000Z",
   "updatedAt": "2024-01-15T14:25:00.000Z"
 }
@@ -253,7 +255,6 @@ GET /products
     {
       "id": 1,
       "name": "Item A",
-      "subCategory": "Category X",
       "price": 99.99,
       "createdAt": "2024-01-15T10:30:00.000Z",
       "updatedAt": "2024-01-15T10:30:00.000Z"
@@ -276,7 +277,6 @@ Content-Type: application/json
 ```json
 {
   "name": "Item A",
-  "subCategory": "Category X",
   "price": 99.99
 }
 ```
@@ -288,7 +288,6 @@ Content-Type: application/json
   "data": {
     "id": 1,
     "name": "Item A",
-    "subCategory": "Category X",
     "price": 99.99,
     "createdAt": "2024-01-15T10:30:00.000Z",
     "updatedAt": "2024-01-15T10:30:00.000Z"
@@ -311,7 +310,6 @@ GET /products/:id
   "data": {
     "id": 1,
     "name": "Item A",
-    "subCategory": "Category X",
     "price": 99.99,
     "createdAt": "2024-01-15T10:30:00.000Z",
     "updatedAt": "2024-01-15T10:30:00.000Z"
@@ -333,7 +331,6 @@ Content-Type: application/json
 ```json
 {
   "name": "Item A+",
-  "subCategory": "Category Y",
   "price": 120.5
 }
 ```
@@ -345,7 +342,6 @@ Content-Type: application/json
   "data": {
     "id": 1,
     "name": "Item A+",
-    "subCategory": "Category Y",
     "price": 120.5,
     "createdAt": "2024-01-15T10:30:00.000Z",
     "updatedAt": "2024-01-15T14:25:00.000Z"
@@ -418,7 +414,7 @@ model Customer {
   name      String
   phone     String   @unique
   firm      String   @unique
-  amount    Float    @default(0)
+  balance   Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -426,7 +422,6 @@ model Customer {
 model Product {
   id          Int       @id @default(autoincrement())
   name        String
-  subCategory String?
   price       Float
   createdAt   DateTime  @default(now())
   updatedAt   DateTime? @updatedAt
@@ -482,7 +477,7 @@ MIT
 
 ## 👤 Author
 
-Your Name
+Nauman Hussain
 
 ## 🐛 Known Issues
 

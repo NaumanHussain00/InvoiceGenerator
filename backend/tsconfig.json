@@ -43,7 +43,6 @@
 //   }
 // }
 
-
 // {
 //   "compilerOptions": {
 //     "target": "ES2020",
@@ -56,13 +55,31 @@
 //   }
 // }
 
+// {
+//   "compilerOptions": {
+//     "module": "ESNext",
+//     "moduleResolution": "node",
+//     "target": "ES2020",
+//     "esModuleInterop": true,
+//     "strict": true,
+//     "skipLibCheck": true
+//   }
+// }
+
 {
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "ES2020",
     "esModuleInterop": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["node"],
+    "resolveJsonModule": true
+  },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node",
+    "transpileOnly": true
   }
 }

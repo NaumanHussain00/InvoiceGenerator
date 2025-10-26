@@ -46,10 +46,6 @@ export const createProduct = async (req: Request, res: Response) => {
     const product = await prisma.product.create({
       data: {
         name: String(name).trim(),
-        subCategory:
-          subCategory === undefined || subCategory === null
-            ? null
-            : String(subCategory).trim(),
         price: Number(price),
       },
     });
@@ -103,12 +99,10 @@ export const updateProduct = async (req: Request, res: Response) => {
     return res.status(400).json(response);
   }
 
-  const { name, subCategory, price } = req.body;
+  const { name, price } = req.body;
   const data: Record<string, any> = {};
 
   if (name !== undefined) data.name = String(name).trim();
-  if (subCategory !== undefined)
-    data.subCategory = subCategory === null ? null : String(subCategory).trim();
   if (price !== undefined) {
     const priceNum = Number(price);
     if (!Number.isFinite(priceNum) || priceNum < 0) {
