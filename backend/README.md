@@ -504,21 +504,25 @@ Invoices represent sales to customers and adjust the customer's balance.
 Base path: /invoices
 
 Computation rules:
+
 - custPrevBalance is read from the customer's current balance at creation time.
 - remainingBalance = custPrevBalance + finalAmount - paidByCustomer
 - On void: status becomes VOID and the customer's balance is reset to the invoice's custPrevBalance.
 - Server trusts frontend monetary fields; minimal validation is performed. Ensure finalAmount is accurate.
 
 Fields:
+
 - Invoice: totalAmount, amountDiscount?, percentDiscount?, amountTax?, percentTax?, packaging?, transportation?, finalAmount, paidByCustomer
 - Line item: productId, productQuantity, productAmountDiscount?, productPercentDiscount?
 - Note: Product price snapshot is not stored on line items.
 
-1) Create Invoice
+1. Create Invoice
+
 - POST /invoices/customer/:customerId
 - Content-Type: application/json
 
 Request body
+
 ```json
 {
   "totalAmount": 1000,
@@ -542,11 +546,13 @@ Request body
 ```
 
 Behavior
+
 - Reads custPrevBalance from the customer.
 - Creates the invoice and line items in a transaction.
 - Updates customer.balance to remainingBalance.
 
 Response (201)
+
 ```json
 {
   "data": {
@@ -585,71 +591,92 @@ Response (201)
 ```
 
 Errors
+
 - 404 Customer Not Found
 - 400 Invalid CustomerID (if path param is invalid)
 - 500 Failed to Create Invoice
 
-2) Get All Invoices
+2. Get All Invoices
+
 - GET /invoices
 
 Response (200)
+
 ```json
 {
-  "data": [ /* invoices with customer and lineItems.product */ ],
+  "data": [
+    /* invoices with customer and lineItems.product */
+  ],
   "message": "Invoices Fetched Successfully",
   "statusCode": 200
 }
 ```
 
-3) Get Invoices by Customer
+3. Get Invoices by Customer
+
 - GET /invoices/customer/:customerId
 
 Response (200)
+
 ```json
 {
-  "data": [ /* invoices */ ],
+  "data": [
+    /* invoices */
+  ],
   "message": "Customer Invoices Fetched Successfully",
   "statusCode": 200
 }
 ```
 
-4) Get Invoice by ID
+4. Get Invoice by ID
+
 - GET /invoices/:id
 
 Response (200)
+
 ```json
 {
-  "data": { /* invoice */ },
+  "data": {
+    /* invoice */
+  },
   "message": "Invoice Fetched Successfully",
   "statusCode": 200
 }
 ```
 
 Errors
+
 - 400 Invalid Invoice ID
 - 404 Invoice Not Found
 
-5) Void Invoice
+5. Void Invoice
+
 - PUT /invoices/void/:id
 
 Behavior
+
 - Fails if already VOID.
 - Sets status to VOID and resets customer.balance to custPrevBalance atomically.
 
 Response (200)
+
 ```json
 {
-  "data": { /* voided invoice with relations */ },
+  "data": {
+    /* voided invoice with relations */
+  },
   "message": "Invoice Voided Successfully",
   "statusCode": 200
 }
 ```
 
 Errors
+
 - 400 Invoice is Already Voided
 - 404 Invoice Not Found
 
 Examples (cURL)
+
 ```bash
 # Create an invoice for customer 3
 curl -X POST http://localhost:3000/invoices/customer/3 \
@@ -772,6 +799,7 @@ model InvoiceLineItem {
 ```
 
 Notes
+
 - productId must reference an existing Product (foreign key).
 - Line items store quantity and discounts; product price snapshot is not stored.
 - Credits are not automatically created when an invoice is added.
