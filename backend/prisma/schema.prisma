@@ -16,14 +16,16 @@ model Customer {
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
   Credit    Credit[]
+  Invoice   Invoice[]
 }
 
 model Product {
-  id        Int       @id @default(autoincrement())
-  name      String
-  price     Float
-  createdAt DateTime  @default(now())
-  updatedAt DateTime? @updatedAt
+  id              Int               @id @default(autoincrement())
+  name            String
+  price           Float
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime?         @updatedAt
+  InvoiceLineItem InvoiceLineItem[]
 }
 
 model Credit {
@@ -44,4 +46,52 @@ model Credit {
 enum CreditStatus {
   ACTIVE
   VOID
+}
+
+model Invoice {
+  id         Int      @id @default(autoincrement())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  totalAmount     Float // this is the amount after discount on individal items but before overall invoice level discounts and taxes calculated from InvoiceLineItem
+  amountDiscount  Float? // from frontend
+  percentDiscount Float? // from frontend
+  amountTax       Float? // from frontend
+  percentTax      Float? // from frontend
+  packaging       Float? // from frontend
+  transportation  Float? // from frontend
+
+  finalAmount Float // from frontend
+
+  custPrevBalance  Float
+  paidByCustomer   Float // from frontend
+  remainingBalance Float
+
+  status InvoiceStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  lineItems InvoiceLineItem[]
+}
+
+enum InvoiceStatus {
+  ACTIVE
+  VOID
+}
+
+model InvoiceLineItem {
+  id Int @id @default(autoincrement())
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  productQuantity        Int
+  productAmountDiscount  Float?
+  productPercentDiscount Float?
+
+  // Easily derive total amount: productAmount * productQuantity - discounts
 }

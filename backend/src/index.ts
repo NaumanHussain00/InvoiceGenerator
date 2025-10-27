@@ -8,10 +8,12 @@ app.use(express.json());
 import customerRoutes from "./routes/customer.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import creditRoutes from "./routes/credit.routes.js";
+import invoiceRoutes from "./routes/invoice.routes.js";
 
 app.use("/customers", customerRoutes);
 app.use("/products", productRoutes);
 app.use("/credits", creditRoutes);
+app.use("/invoices", invoiceRoutes);
 
 // Start the server
 const PORT = process.env.PORT ?? 3000;
