@@ -64,23 +64,25 @@ A RESTful API for managing customers and invoices built with Node.js, Express, T
 ```
 backend/
 ├── prisma/
-│   ├── schema.prisma             # Database schema (Customer, Product)
-│   └── migrations/               # Database migrations
+│   ├── schema.prisma
+│   └── migrations/
 ├── src/
 │   ├── config/
-│   │   └── db.ts                 # Prisma client configuration
+│   │   └── db.ts
 │   ├── controllers/
 │   │   ├── customer.controllers.ts
 │   │   ├── product.controllers.ts
-│   │   └── credit.controllers.ts
+│   │   ├── credit.controllers.ts
+│   │   └── invoice.controllers.ts   # + Added
 │   ├── routes/
 │   │   ├── customer.routes.ts
 │   │   ├── product.routes.ts
-│   │   └── credit.routes.ts
+│   │   ├── credit.routes.ts
+│   │   └── invoice.routes.ts        # + Added
 │   ├── utils/
-│   │   └── ResponseEntity.ts     # Response wrapper
-│   └── index.ts                  # App entry, registers routes
-├── .env                          # Environment variables
+│   │   └── ResponseEntity.ts
+│   └── index.ts
+├── .env
 ├── package.json
 └── tsconfig.json
 ```
@@ -495,65 +497,189 @@ Responses
 - 404 if the credit doesn't exist.
 - 400 if the credit is already void.
 
-## 🧪 Testing with cURL
+### Invoice Endpoints
 
+Invoices represent sales to customers and adjust the customer's balance.
+
+Base path: /invoices
+
+Computation rules:
+- custPrevBalance is read from the customer's current balance at creation time.
+- remainingBalance = custPrevBalance + finalAmount - paidByCustomer
+- On void: status becomes VOID and the customer's balance is reset to the invoice's custPrevBalance.
+- Server trusts frontend monetary fields; minimal validation is performed. Ensure finalAmount is accurate.
+
+Fields:
+- Invoice: totalAmount, amountDiscount?, percentDiscount?, amountTax?, percentTax?, packaging?, transportation?, finalAmount, paidByCustomer
+- Line item: productId, productQuantity, productAmountDiscount?, productPercentDiscount?
+- Note: Product price snapshot is not stored on line items.
+
+1) Create Invoice
+- POST /invoices/customer/:customerId
+- Content-Type: application/json
+
+Request body
+```json
+{
+  "totalAmount": 1000,
+  "amountDiscount": 50,
+  "percentDiscount": 5,
+  "amountTax": 30,
+  "percentTax": 3,
+  "packaging": 20,
+  "transportation": 40,
+  "finalAmount": 1035,
+  "paidByCustomer": 500,
+  "lineItems": [
+    {
+      "productId": 1,
+      "productQuantity": 3,
+      "productAmountDiscount": 10,
+      "productPercentDiscount": 2
+    }
+  ]
+}
+```
+
+Behavior
+- Reads custPrevBalance from the customer.
+- Creates the invoice and line items in a transaction.
+- Updates customer.balance to remainingBalance.
+
+Response (201)
+```json
+{
+  "data": {
+    "id": 12,
+    "customerId": 3,
+    "totalAmount": 1000,
+    "amountDiscount": 50,
+    "percentDiscount": 5,
+    "amountTax": 30,
+    "percentTax": 3,
+    "packaging": 20,
+    "transportation": 40,
+    "finalAmount": 1035,
+    "custPrevBalance": 200,
+    "paidByCustomer": 500,
+    "remainingBalance": 735,
+    "status": "ACTIVE",
+    "createdAt": "2025-10-16T19:59:00.000Z",
+    "updatedAt": null,
+    "customer": { "...": "..." },
+    "lineItems": [
+      {
+        "id": 34,
+        "invoiceId": 12,
+        "productId": 1,
+        "productQuantity": 3,
+        "productAmountDiscount": 10,
+        "productPercentDiscount": 2,
+        "product": { "...": "..." }
+      }
+    ]
+  },
+  "message": "Invoice Created Successfully",
+  "statusCode": 201
+}
+```
+
+Errors
+- 404 Customer Not Found
+- 400 Invalid CustomerID (if path param is invalid)
+- 500 Failed to Create Invoice
+
+2) Get All Invoices
+- GET /invoices
+
+Response (200)
+```json
+{
+  "data": [ /* invoices with customer and lineItems.product */ ],
+  "message": "Invoices Fetched Successfully",
+  "statusCode": 200
+}
+```
+
+3) Get Invoices by Customer
+- GET /invoices/customer/:customerId
+
+Response (200)
+```json
+{
+  "data": [ /* invoices */ ],
+  "message": "Customer Invoices Fetched Successfully",
+  "statusCode": 200
+}
+```
+
+4) Get Invoice by ID
+- GET /invoices/:id
+
+Response (200)
+```json
+{
+  "data": { /* invoice */ },
+  "message": "Invoice Fetched Successfully",
+  "statusCode": 200
+}
+```
+
+Errors
+- 400 Invalid Invoice ID
+- 404 Invoice Not Found
+
+5) Void Invoice
+- PUT /invoices/void/:id
+
+Behavior
+- Fails if already VOID.
+- Sets status to VOID and resets customer.balance to custPrevBalance atomically.
+
+Response (200)
+```json
+{
+  "data": { /* voided invoice with relations */ },
+  "message": "Invoice Voided Successfully",
+  "statusCode": 200
+}
+```
+
+Errors
+- 400 Invoice is Already Voided
+- 404 Invoice Not Found
+
+Examples (cURL)
 ```bash
-# Get all customers
-curl http://localhost:3000/customers
-
-# Create a customer
-curl -X POST http://localhost:3000/customers \
+# Create an invoice for customer 3
+curl -X POST http://localhost:3000/invoices/customer/3 \
   -H "Content-Type: application/json" \
-  -d '{"name":"John Doe","phone":"123-456-7890","firm":"Acme Corp"}'
+  -d '{
+    "totalAmount": 1000,
+    "amountDiscount": 50,
+    "percentDiscount": 5,
+    "amountTax": 30,
+    "percentTax": 3,
+    "packaging": 20,
+    "transportation": 40,
+    "finalAmount": 1035,
+    "paidByCustomer": 500,
+    "lineItems": [
+      { "productId": 1, "productQuantity": 3, "productAmountDiscount": 10, "productPercentDiscount": 2 }
+    ]
+  }'
 
-# Get customer by ID
-curl http://localhost:3000/customers/1
+# Get all invoices
+curl http://localhost:3000/invoices
 
-# Update customer
-curl -X PUT http://localhost:3000/customers/1 \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Jane Doe"}'
+# Get invoices by customer
+curl http://localhost:3000/invoices/customer/3
 
-# Delete customer
-curl -X DELETE http://localhost:3000/customers/1
+# Get invoice by id
+curl http://localhost:3000/invoices/12
 
-# Products
-# Get all products
-curl http://localhost:3000/products
-
-# Create a product
-curl -X POST http://localhost:3000/products \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Item A","subCategory":"Category X","price":99.99}'
-
-# Get product by ID
-curl http://localhost:3000/products/1
-
-# Update product
-curl -X PUT http://localhost:3000/products/1 \
-  -H "Content-Type: application/json" \
-  -d '{"price":120.5}'
-
-# Delete product
-curl -X DELETE http://localhost:3000/products/1
-
-# Credits
-# Create a credit (apply payment of 150 to customer 1)
-curl -X POST http://localhost:3000/credits/customer/1 \
-  -H "Content-Type: application/json" \
-  -d '{"amountPaidByCustomer":150}'
-
-# Get all credits
-curl http://localhost:3000/credits
-
-# Get credit by id
-curl http://localhost:3000/credits/12
-
-# Get all credits for a customer
-curl http://localhost:3000/credits/customer/1
-
-# Void a credit by id
-curl -X PUT http://localhost:3000/credits/void/12
+# Void an invoice
+curl -X PUT http://localhost:3000/invoices/void/12
 ```
 
 ## 🗄️ Database Schema
@@ -597,7 +723,58 @@ enum CreditStatus {
   ACTIVE
   VOID
 }
+
+model Invoice {
+  id         Int      @id @default(autoincrement())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  totalAmount     Float
+  amountDiscount  Float?
+  percentDiscount Float?
+  amountTax       Float?
+  percentTax      Float?
+  packaging       Float?
+  transportation  Float?
+
+  finalAmount Float
+
+  custPrevBalance  Float
+  paidByCustomer   Float
+  remainingBalance Float
+
+  status InvoiceStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  lineItems InvoiceLineItem[]
+}
+
+enum InvoiceStatus {
+  ACTIVE
+  VOID
+}
+
+model InvoiceLineItem {
+  id Int @id @default(autoincrement())
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  productQuantity        Int
+  productAmountDiscount  Float?
+  productPercentDiscount Float?
+}
 ```
+
+Notes
+- productId must reference an existing Product (foreign key).
+- Line items store quantity and discounts; product price snapshot is not stored.
+- Credits are not automatically created when an invoice is added.
 
 ## 📝 Scripts
 
