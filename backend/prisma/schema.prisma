@@ -1,3 +1,7 @@
+// ----------------------------------------------------------
+// Prisma Schema for Invoice Management System
+// ----------------------------------------------------------
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +11,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ----------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------
+
+enum InvoiceStatus {
+  ACTIVE
+  VOID
+}
+
+enum CreditStatus {
+  ACTIVE
+  VOID
+}
+
+// ----------------------------------------------------------
+// MODELS
+// ----------------------------------------------------------
+
 model Customer {
   id        Int       @id @default(autoincrement())
   name      String
@@ -15,17 +37,19 @@ model Customer {
   balance   Float
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
-  Credit    Credit[]
-  Invoice   Invoice[]
+
+  credits  Credit[]
+  invoices Invoice[]
 }
 
 model Product {
-  id              Int               @id @default(autoincrement())
-  name            String
-  price           Float
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime?         @updatedAt
-  InvoiceLineItem InvoiceLineItem[]
+  id        Int       @id @default(autoincrement())
+  name      String
+  price     Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  invoiceLineItems InvoiceLineItem[]
 }
 
 model Credit {
@@ -33,9 +57,9 @@ model Credit {
   customer   Customer @relation(fields: [customerId], references: [id])
   customerId Int
 
-  previousBalance      Float // Balance before payment
-  amountPaidByCustomer Float // Payment made by customer
-  finalBalance         Float // New balance after payment
+  previousBalance      Float
+  amountPaidByCustomer Float
+  finalBalance         Float
 
   status CreditStatus @default(ACTIVE)
 
@@ -43,28 +67,21 @@ model Credit {
   updatedAt DateTime? @updatedAt
 }
 
-enum CreditStatus {
-  ACTIVE
-  VOID
-}
-
 model Invoice {
   id         Int      @id @default(autoincrement())
   customer   Customer @relation(fields: [customerId], references: [id])
   customerId Int
 
-  totalAmount     Float // this is the amount after discount on individal items but before overall invoice level discounts and taxes calculated from InvoiceLineItem
-  amountDiscount  Float? // from frontend
-  percentDiscount Float? // from frontend
-  amountTax       Float? // from frontend
-  percentTax      Float? // from frontend
-  packaging       Float? // from frontend
-  transportation  Float? // from frontend
-
-  finalAmount Float // from frontend
+  totalAmount     Float
+  amountDiscount  Float?
+  percentDiscount Float?
+  // percentTax      Float?
+  // packaging       Float?
+  // transportation  Float?
+  finalAmount     Float
 
   custPrevBalance  Float
-  paidByCustomer   Float // from frontend
+  paidByCustomer   Float
   remainingBalance Float
 
   status InvoiceStatus @default(ACTIVE)
@@ -72,13 +89,15 @@ model Invoice {
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 
-  lineItems InvoiceLineItem[]
+  invoiceLineItems        InvoiceLineItem[]
+  taxLineItems            TaxLineItem[]
+  packagingLineItems      PackagingLineItem[]
+  transportationLineItems TransportationLineItem[]
 }
 
-enum InvoiceStatus {
-  ACTIVE
-  VOID
-}
+// ----------------------------------------------------------
+// LINE ITEM MODELS
+// ----------------------------------------------------------
 
 model InvoiceLineItem {
   id Int @id @default(autoincrement())
@@ -92,6 +111,38 @@ model InvoiceLineItem {
   productQuantity        Int
   productAmountDiscount  Float?
   productPercentDiscount Float?
+}
 
-  // Easily derive total amount: productAmount * productQuantity - discounts
+model TaxLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  percent   Float
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model PackagingLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model TransportationLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
 }

@@ -509,46 +509,50 @@ Computation rules:
 - remainingBalance = custPrevBalance + finalAmount - paidByCustomer
 - On void: status becomes VOID and the customer's balance is reset to the invoice's custPrevBalance.
 - Server trusts frontend monetary fields; minimal validation is performed. Ensure finalAmount is accurate.
+- Taxes, packaging, and transportation are stored as separate line items on the invoice.
 
 Fields:
 
-- Invoice: totalAmount, amountDiscount?, percentDiscount?, amountTax?, percentTax?, packaging?, transportation?, finalAmount, paidByCustomer
-- Line item: productId, productQuantity, productAmountDiscount?, productPercentDiscount?
+- Invoice: customerId, totalAmount, amountDiscount?, percentDiscount?, finalAmount, paidByCustomer
+- Product line item: productId, productQuantity, productAmountDiscount?, productPercentDiscount?
+- Tax line item: name, percent, amount
+- Packaging line item: name, amount
+- Transportation line item: name, amount
 - Note: Product price snapshot is not stored on line items.
 
 1. Create Invoice
 
-- POST /invoices/customer/:customerId
+- POST /invoices
 - Content-Type: application/json
 
 Request body
 
 ```json
 {
+  "customerId": 3,
   "totalAmount": 1000,
   "amountDiscount": 50,
   "percentDiscount": 5,
-  "amountTax": 30,
-  "percentTax": 3,
-  "packaging": 20,
-  "transportation": 40,
   "finalAmount": 1035,
   "paidByCustomer": 500,
-  "lineItems": [
+  "invoiceLineItems": [
     {
       "productId": 1,
       "productQuantity": 3,
       "productAmountDiscount": 10,
       "productPercentDiscount": 2
     }
-  ]
+  ],
+  "taxLineItems": [{ "name": "GST", "percent": 3, "amount": 30 }],
+  "packagingLineItems": [{ "name": "Box", "amount": 20 }],
+  "transportationLineItems": [{ "name": "Delivery", "amount": 40 }]
 }
 ```
 
 Behavior
 
 - Reads custPrevBalance from the customer.
-- Creates the invoice and line items in a transaction.
+- Creates the invoice and all line item groups in a single transaction.
 - Updates customer.balance to remainingBalance.
 
 Response (201)
@@ -561,10 +565,6 @@ Response (201)
     "totalAmount": 1000,
     "amountDiscount": 50,
     "percentDiscount": 5,
-    "amountTax": 30,
-    "percentTax": 3,
-    "packaging": 20,
-    "transportation": 40,
     "finalAmount": 1035,
     "custPrevBalance": 200,
     "paidByCustomer": 500,
@@ -573,7 +573,7 @@ Response (201)
     "createdAt": "2025-10-16T19:59:00.000Z",
     "updatedAt": null,
     "customer": { "...": "..." },
-    "lineItems": [
+    "invoiceLineItems": [
       {
         "id": 34,
         "invoiceId": 12,
@@ -582,6 +582,37 @@ Response (201)
         "productAmountDiscount": 10,
         "productPercentDiscount": 2,
         "product": { "...": "..." }
+      }
+    ],
+    "taxLineItems": [
+      {
+        "id": 1,
+        "invoiceId": 12,
+        "name": "GST",
+        "percent": 3,
+        "amount": 30,
+        "createdAt": "...",
+        "updatedAt": null
+      }
+    ],
+    "packagingLineItems": [
+      {
+        "id": 1,
+        "invoiceId": 12,
+        "name": "Box",
+        "amount": 20,
+        "createdAt": "...",
+        "updatedAt": null
+      }
+    ],
+    "transportationLineItems": [
+      {
+        "id": 1,
+        "invoiceId": 12,
+        "name": "Delivery",
+        "amount": 40,
+        "createdAt": "...",
+        "updatedAt": null
       }
     ]
   },
@@ -593,7 +624,7 @@ Response (201)
 Errors
 
 - 404 Customer Not Found
-- 400 Invalid CustomerID (if path param is invalid)
+- 400 Invalid Customer ID (if invalid type)
 - 500 Failed to Create Invoice
 
 2. Get All Invoices
@@ -605,7 +636,14 @@ Response (200)
 ```json
 {
   "data": [
-    /* invoices with customer and lineItems.product */
+    {
+      "...": "...",
+      "customer": { "...": "..." },
+      "invoiceLineItems": [{ "...": "...", "product": { "...": "..." } }],
+      "taxLineItems": [{ "...": "..." }],
+      "packagingLineItems": [{ "...": "..." }],
+      "transportationLineItems": [{ "...": "..." }]
+    }
   ],
   "message": "Invoices Fetched Successfully",
   "statusCode": 200
@@ -621,7 +659,7 @@ Response (200)
 ```json
 {
   "data": [
-    /* invoices */
+    /* invoices with all line item groups */
   ],
   "message": "Customer Invoices Fetched Successfully",
   "statusCode": 200
@@ -637,7 +675,7 @@ Response (200)
 ```json
 {
   "data": {
-    /* invoice */
+    /* invoice with customer, invoiceLineItems.product, tax/packaging/transportation line items */
   },
   "message": "Invoice Fetched Successfully",
   "statusCode": 200
@@ -670,30 +708,25 @@ Response (200)
 }
 ```
 
-Errors
-
-- 400 Invoice is Already Voided
-- 404 Invoice Not Found
-
 Examples (cURL)
 
 ```bash
-# Create an invoice for customer 3
-curl -X POST http://localhost:3000/invoices/customer/3 \
+# Create an invoice (customerId in body)
+curl -X POST http://localhost:3000/invoices \
   -H "Content-Type: application/json" \
   -d '{
+    "customerId": 3,
     "totalAmount": 1000,
     "amountDiscount": 50,
     "percentDiscount": 5,
-    "amountTax": 30,
-    "percentTax": 3,
-    "packaging": 20,
-    "transportation": 40,
     "finalAmount": 1035,
     "paidByCustomer": 500,
-    "lineItems": [
+    "invoiceLineItems": [
       { "productId": 1, "productQuantity": 3, "productAmountDiscount": 10, "productPercentDiscount": 2 }
-    ]
+    ],
+    "taxLineItems": [ { "name": "GST", "percent": 3, "amount": 30 } ],
+    "packagingLineItems": [ { "name": "Box", "amount": 20 } ],
+    "transportationLineItems": [ { "name": "Delivery", "amount": 40 } ]
   }'
 
 # Get all invoices
@@ -712,6 +745,18 @@ curl -X PUT http://localhost:3000/invoices/void/12
 ## 🗄️ Database Schema
 
 ```prisma
+// Enums
+enum InvoiceStatus {
+  ACTIVE
+  VOID
+}
+
+enum CreditStatus {
+  ACTIVE
+  VOID
+}
+
+// Models
 model Customer {
   id        Int       @id @default(autoincrement())
   name      String
@@ -720,7 +765,9 @@ model Customer {
   balance   Float
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
-  Credit    Credit[]
+
+  credits  Credit[]
+  invoices Invoice[]
 }
 
 model Product {
@@ -729,6 +776,8 @@ model Product {
   price     Float
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
+
+  invoiceLineItems InvoiceLineItem[]
 }
 
 model Credit {
@@ -736,19 +785,14 @@ model Credit {
   customer   Customer @relation(fields: [customerId], references: [id])
   customerId Int
 
-  previousBalance      Float // Balance before payment
-  amountPaidByCustomer Float // Payment made by customer
-  finalBalance         Float // New balance after payment
+  previousBalance      Float
+  amountPaidByCustomer Float
+  finalBalance         Float
 
   status CreditStatus @default(ACTIVE)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
-}
-
-enum CreditStatus {
-  ACTIVE
-  VOID
 }
 
 model Invoice {
@@ -759,12 +803,7 @@ model Invoice {
   totalAmount     Float
   amountDiscount  Float?
   percentDiscount Float?
-  amountTax       Float?
-  percentTax      Float?
-  packaging       Float?
-  transportation  Float?
-
-  finalAmount Float
+  finalAmount     Float
 
   custPrevBalance  Float
   paidByCustomer   Float
@@ -775,12 +814,10 @@ model Invoice {
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 
-  lineItems InvoiceLineItem[]
-}
-
-enum InvoiceStatus {
-  ACTIVE
-  VOID
+  invoiceLineItems        InvoiceLineItem[]
+  taxLineItems            TaxLineItem[]
+  packagingLineItems      PackagingLineItem[]
+  transportationLineItems TransportationLineItem[]
 }
 
 model InvoiceLineItem {
@@ -796,13 +833,47 @@ model InvoiceLineItem {
   productAmountDiscount  Float?
   productPercentDiscount Float?
 }
+
+model TaxLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  percent   Float
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model PackagingLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model TransportationLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
 ```
 
 Notes
 
-- productId must reference an existing Product (foreign key).
+- Submit either percent- or amount-based taxes per line; both are stored as provided in TaxLineItem.
 - Line items store quantity and discounts; product price snapshot is not stored.
-- Credits are not automatically created when an invoice is added.
+- Credits are independent of invoice creation.
 
 ## 📝 Scripts
 

@@ -11,7 +11,7 @@ import {
 const router = Router();
 
 // Description: Create a New Invoice Entry.
-router.post("/customer/:customerId", addInvoice);
+router.post("/", addInvoice);
 
 // Description: Get All Invoices.
 router.get("/", getInvoices);
