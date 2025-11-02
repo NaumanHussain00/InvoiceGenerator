@@ -6,6 +6,7 @@ import {
     getCustomerInvoices,
     getInvoiceById,
     voidInvoice,
+    generateInvoiceById,
 } from "../controllers/invoice.controllers.js";
 
 const router = Router();
@@ -24,5 +25,9 @@ router.get("/:id", getInvoiceById);
 
 // Description: Void an Invoice by ID.
 router.put("/void/:id", voidInvoice);
+
+// Description: Generate Invoice by ID.
+router.get("/invoice/generate/:id", generateInvoiceById);
+
 
 export default router;

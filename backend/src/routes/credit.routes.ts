@@ -6,6 +6,7 @@ import {
   getCreditById,
   getCreditsByCustomerId,
   voidCreditById,
+  generateCredit,
 } from "../controllers/credit.controllers.js";
 
 const router = express.Router();
@@ -24,5 +25,8 @@ router.get("/customer/:customerId", getCreditsByCustomerId);
 
 // Description: Void a credit entry by ID.
 router.put("/void/:id", voidCreditById);
+
+// GET /api/credit/generate/:creditId
+router.get("/credit/generate/:creditId", generateCredit);
 
 export default router;

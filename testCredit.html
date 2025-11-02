@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Credit Note</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #222;
+            margin: 0;
+            padding: 0;
+        }
+
+        .invoice-box {
+            width: 210mm;
+            min-height: 297mm;
+            margin: auto;
+            padding: 20mm;
+            box-sizing: border-box;
+            border: 1px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            line-height: 24px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .title {
+            font-size: 45px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #4B00FF;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+        }
+
+        .company-details {
+            text-align: right;
+            line-height: 18px;
+        }
+
+        .details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .details div {
+            width: 48%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            table-layout: fixed;
+        }
+
+        table th {
+            border-bottom: 2px solid #4B00FF;
+            text-align: left;
+            padding: 10px 0;
+            color: #4B00FF;
+            text-transform: uppercase;
+            font-size: 13px;
+        }
+
+        table td {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .totals {
+            margin-top: 30px;
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .totals td {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .totals .total {
+            font-weight: bold;
+            font-size: 16px;
+            border-top: 2px solid #000;
+        }
+
+        .highlight {
+            color: #4B00FF;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="invoice-box">
+        <div class="header">
+            <div>
+                <div class="title">Credit Note</div>
+                <div style="font-size: 18px;">Credit ID: 1</div>
+                <div>Date Issued: 26/10/2025</div>
+            </div>
+            <div class="company-details">
+                <strong>YOUR COMPANY</strong><br />
+              1234 Your Street<br />
+              City, California 90210<br />
+              United States<br />
+              1-888-123-4567
+            </div>
+        </div>
+
+        <div class="details">
+            <div>
+                <strong>Billed To</strong><br />
+              Nauman Hussain<br />
+
+            </div>
+
+            <div>
+                <table style="width: 100%;">
+                    <tr>
+                        <td>Customer ID:</td>
+                        <td>1</td>
+                    </tr>
+                    <tr>
+                        <td>Status:</td>
+                        <td>VOID</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <table class="totals">
+            <tr>
+                <td>Previous Balance</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>₹500.00</td>
+            </tr>
+            <tr>
+                <td>Amount Paid by Customer</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>₹100.00</td>
+            </tr>
+            <tr class="highlight">
+                <td>New Balance</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>₹400.00</td>
+            </tr>
+        </table>
+    </div>
+</body>
+
+</html>

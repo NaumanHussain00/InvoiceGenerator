@@ -1,21 +1,34 @@
 import prisma from "./config/db.js";
 import express, { type Express } from "express";
+import cors from "cors";
 
 const app: Express = express();
 app.use(express.json());
 
-// Import the router using the .js extension so ts-node/esm can resolve it
+// ✅ Properly enable CORS middleware
+app.use(cors());
+
+// OR configure CORS explicitly if needed
+// app.use(cors({
+//   origin: "http://localhost:5173", // frontend URL
+//   credentials: true,
+// }));
+
+// Import routes
 import customerRoutes from "./routes/customer.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import creditRoutes from "./routes/credit.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
+import getHtmlRoutes from "./routes/getHtml.routes.js";
 
+// ✅ Attach routers
 app.use("/customers", customerRoutes);
 app.use("/products", productRoutes);
 app.use("/credits", creditRoutes);
 app.use("/invoices", invoiceRoutes);
+app.use("/html", getHtmlRoutes);
 
-// Start the server
+// Start server
 const PORT = process.env.PORT ?? 3000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

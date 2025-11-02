@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice</title>
+    <style>
+      body {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #222;
+        margin: 40px;
+      }
+
+      .invoice-box {
+        max-width: 800px;
+        margin: auto;
+        padding: 30px;
+        border: 1px solid #eee;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        line-height: 24px;
+        font-size: 14px;
+      }
+
+      .title {
+        font-size: 45px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 30px;
+      }
+
+      .company-details {
+        text-align: right;
+        line-height: 18px;
+      }
+
+      .details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+
+      .details div {
+        width: 48%;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        table-layout: fixed;
+      }
+
+      table th {
+        border-bottom: 2px solid #4B00FF;
+        text-align: left;
+        padding: 10px 0;
+        color: #4B00FF;
+        text-transform: uppercase;
+        font-size: 13px;
+      }
+
+      table td {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      colgroup col:nth-child(1) {
+        width: 45%;
+      }
+      colgroup col:nth-child(2),
+      colgroup col:nth-child(3),
+      colgroup col:nth-child(4),
+      colgroup col:nth-child(5) {
+        width: 13.75%;
+      }
+
+      .totals {
+        margin-top: 30px;
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      .totals td {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .totals .total {
+        font-weight: bold;
+        font-size: 16px;
+        border-top: 2px solid #000;
+      }
+
+      .highlight {
+        color: #4B00FF;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="invoice-box">
+      <div class="header">
+        <div>
+          <div class="title">Invoice</div>
+          <div style="font-size: 18px;">Customer Invoice #2</div>
+        </div>
+
+        <div class="company-details">
+          <strong>YOUR COMPANY</strong><br />
+          1234 Your Street<br />
+          City, California 90210<br />
+          United States<br />
+          1-888-123-4567
+        </div>
+      </div>
+
+      <div class="details">
+        <div>
+          <strong>Billed To</strong><br />
+          Customer ID: 2<br />
+          Random Customer Address<br />
+          City, California<br />
+          United States
+        </div>
+
+        <div>
+          <table style="width: 100%;">
+            <tr>
+              <td>Date Issued:</td>
+              <td>02/11/2025</td>
+            </tr>
+            <tr>
+              <td>Invoice Number:</td>
+              <td>INV-0002</td>
+            </tr>
+            <tr>
+              <td><strong>Remaining Balance:</strong></td>
+              <td><strong>₹640.00</strong></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <table>
+        <colgroup>
+          <col /><col /><col /><col /><col />
+        </colgroup>
+        <tr>
+          <th>PRODUCTS</th>
+          <th>RATE</th>
+          <th>QTY</th>
+          <th>DISCOUNT</th>
+          <th>AMOUNT</th>
+        </tr>
+
+        <tr>
+  <td>Product #2</td>
+  <td>₹295.00</td>
+  <td>2</td>
+  <td>₹100.00</td>
+  <td>₹590.00</td>
+</tr>
+
+<tr>
+  <td>Product #5</td>
+  <td>₹12.00</td>
+  <td>1</td>
+  <td>₹12.00</td>
+  <td>₹12.00</td>
+</tr>
+
+<tr>
+  <td>Product #9</td>
+  <td>₹100.00</td>
+  <td>1</td>
+  <td>₹10.00</td> <!-- Converted 10% to amount -->
+  <td>₹90.00</td>
+</tr>
+      </table>
+
+      <table class="totals">
+        <colgroup>
+          <col /><col /><col /><col /><col />
+        </colgroup>
+        <tr>
+          <td>Subtotal</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>₹590.00</td>
+        </tr>
+        <tr>
+          <td>Discount</td>
+          <td></td>
+          <td></td>
+          <td>0%</td>
+          <td>₹90.00</td>
+        </tr>
+        <tr>
+          <td>Tax: T1</td>
+          <td></td>
+          <td></td>
+          <td>0%</td>
+          <td>₹50.00</td>
+        </tr>
+        <tr>
+          <td>Tax: T3</td>
+          <td></td>
+          <td></td>
+          <td>10%</td>
+          <td>₹0.00</td>
+        </tr>
+        <tr>
+          <td>Packaging: P1</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>₹10.00</td>
+        </tr>
+        <tr>
+          <td>Packaging: P3</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>₹10.00</td>
+        </tr>
+        <tr>
+          <td>Transport: Tran1</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>₹10.00</td>
+        </tr>
+        <tr>
+          <td>Transport: Tran3</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>₹10.00</td>
+        </tr>
+        <tr class="total">
+          <td>Total</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>₹640.00</td>
+        </tr>
+        <tr>
+          <td>Amount Paid by Customer</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>₹0.00</td>
+        </tr>
+        <tr class="highlight">
+          <td>Remaining Balance</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>₹640.00</td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html> -->
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice</title>
+    <style>
+      body {
+        font-family: 'Poppins', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #222;
+        margin: 40px;
+        background: #f9f8ff;
+      }
+
+      .invoice-box {
+        max-width: 850px;
+        margin: auto;
+        padding: 40px;
+        border: 1px solid #e5ddff;
+        background: white;
+        box-shadow: 0 0 15px rgba(90, 0, 255, 0.1);
+        line-height: 24px;
+        font-size: 14px;
+        border-radius: 12px;
+      }
+
+      .title {
+        font-size: 45px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: #5A00FF;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        table-layout: fixed;
+      }
+
+      table th {
+        border-bottom: 2px solid #5A00FF;
+        text-align: left;
+        padding: 10px 0;
+        color: #5A00FF;
+        text-transform: uppercase;
+        font-size: 13px;
+      }
+
+      table td {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .totals {
+        margin-top: 30px;
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      .totals .total {
+        font-weight: bold;
+        font-size: 16px;
+        border-top: 2px solid #5A00FF;
+      }
+
+      .highlight {
+        color: #5A00FF;
+        font-weight: bold;
+      }
+
+      .footer-note {
+        margin-top: 40px;
+        text-align: center;
+        color: #777;
+        font-size: 13px;
+      }
+
+      .footer-note strong {
+        color: #5A00FF;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="invoice-box">
+      <div class="title">Invoice</div>
+
+      <table id="products-table">
+        <tr>
+          <th>PRODUCTS</th>
+          <th>RATE</th>
+          <th>QTY</th>
+          <th>DISCOUNT</th>
+          <th>AMOUNT</th>
+        </tr>
+      </table>
+
+      <table class="totals" id="totals-table">
+        <tr>
+          <td>Subtotal</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td id="subtotal">₹0.00</td>
+        </tr>
+      </table>
+
+      <div class="footer-note">
+        <strong>Thank you for your business!</strong><br />
+        For any queries, contact support@yourcompany.com
+      </div>
+    </div>
+
+    <script>
+      // --- Request Body (demo) ---
+      const data = {
+        customerId: 2,
+        totalAmount: 590,
+        amountDiscount: 90,
+        percentDiscount: 0,
+        finalAmount: 640,
+        paidByCustomer: 0,
+        invoiceLineItems: [
+          { productId: 2, productQuantity: 2, productAmountDiscount: 100, productPercentDiscount: 0 },
+          { productId: 5, productQuantity: 1, productAmountDiscount: 12, productPercentDiscount: 0 },
+          { productId: 9, productQuantity: 1, productAmountDiscount: 0, productPercentDiscount: 10 },
+        ],
+        taxLineItems: [
+          { name: 'T1', percent: 0, amount: 50 },
+          { name: 'T3', percent: 10, amount: 0 },
+        ],
+        packagingLineItems: [
+          { name: 'P1', amount: 10 },
+          { name: 'P3', amount: 10 },
+        ],
+        transportationLineItems: [
+          { name: 'Tran1', amount: 10 },
+          { name: 'Tran3', amount: 10 },
+        ],
+      };
+
+      // --- Sample Product Rates ---
+      const productRates = { 2: 295, 5: 12, 9: 100 };
+
+      const productsTable = document.getElementById("products-table");
+      let subtotal = 0;
+
+      // --- Add Products Dynamically ---
+      data.invoiceLineItems.forEach((item) => {
+        const rate = productRates[item.productId] || 0;
+        const discountAmt =
+          item.productAmountDiscount ||
+          ((rate * item.productQuantity * item.productPercentDiscount) / 100);
+        const amount = rate * item.productQuantity - discountAmt;
+        subtotal += amount;
+
+        const row = `
+          <tr>
+            <td>Product #${item.productId}</td>
+            <td>₹${rate.toFixed(2)}</td>
+            <td>${item.productQuantity}</td>
+            <td>₹${discountAmt.toFixed(2)}</td>
+            <td>₹${amount.toFixed(2)}</td>
+          </tr>
+        `;
+        productsTable.insertAdjacentHTML("beforeend", row);
+      });
+
+      document.getElementById("subtotal").textContent = `₹${subtotal.toFixed(2)}`;
+
+      const totalsTable = document.getElementById("totals-table");
+
+      // --- Helper: add row ---
+      function addRow(label, percent, amount) {
+        const row = `
+          <tr>
+            <td>${label}</td>
+            <td></td>
+            <td></td>
+            <td>${percent ? percent + "%" : ""}</td>
+            <td>₹${amount.toFixed(2)}</td>
+          </tr>
+        `;
+        totalsTable.insertAdjacentHTML("beforeend", row);
+      }
+
+      // --- Discount ---
+      let discountAmt = data.amountDiscount || (subtotal * data.percentDiscount) / 100;
+      let discountPercent = data.percentDiscount || ((discountAmt / subtotal) * 100).toFixed(2);
+      addRow("Discount", discountPercent, discountAmt);
+
+      // --- Taxes ---
+      data.taxLineItems.forEach((tax) => {
+        const amount = tax.amount || (subtotal * tax.percent) / 100;
+        const percent = tax.percent || ((amount / subtotal) * 100).toFixed(2);
+        addRow(`Tax: ${tax.name}`, percent, amount);
+      });
+
+      // --- Packaging ---
+      data.packagingLineItems.forEach((p) => {
+        addRow(`Packaging: ${p.name}`, "", p.amount);
+      });
+
+      // --- Transportation ---
+      data.transportationLineItems.forEach((t) => {
+        addRow(`Transport: ${t.name}`, "", t.amount);
+      });
+
+      // --- Total Calculation ---
+      const total =
+        subtotal -
+        discountAmt +
+        data.taxLineItems.reduce((a, t) => a + (t.amount || (subtotal * t.percent) / 100), 0) +
+        data.packagingLineItems.reduce((a, p) => a + p.amount, 0) +
+        data.transportationLineItems.reduce((a, t) => a + t.amount, 0);
+
+      totalsTable.insertAdjacentHTML(
+        "beforeend",
+        `
+        <tr class="total"><td>Total</td><td></td><td></td><td></td><td>₹${total.toFixed(2)}</td></tr>
+        <tr><td>Amount Paid by Customer</td><td></td><td></td><td></td><td>₹${data.paidByCustomer.toFixed(2)}</td></tr>
+        <tr class="highlight"><td>Remaining Balance</td><td></td><td></td><td></td><td>₹${(total - data.paidByCustomer).toFixed(2)}</td></tr>
+      `
+      );
+    </script>
+  </body>
+</html> -->
+

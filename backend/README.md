@@ -497,7 +497,56 @@ Responses
 - 404 if the credit doesn't exist.
 - 400 if the credit is already void.
 
-### Invoice Endpoints
+#### 6. Generate Credit Note HTML (A4 Size)
+
+```http
+GET /credits/credit/generate/:creditId
+```
+
+Behavior
+
+- Fetches the credit record with customer information.
+- Generates a professional A4-sized HTML credit note document.
+- Displays previous balance, amount paid, and new balance.
+- Returns HTML directly (Content-Type: text/html).
+
+Response (200)
+
+Returns A4-sized HTML document with:
+
+- Credit note header with credit ID and date
+- Company details
+- Customer information
+- Credit status (ACTIVE/VOID)
+- Previous balance, amount paid, and new balance
+- Professional credit note layout matching invoice design
+
+The HTML uses:
+
+- A4 dimensions (210mm × 297mm)
+- Print-ready styling with @page rules
+- Rupee (₹) currency formatting
+- Consistent branding with invoice template
+
+Errors
+
+- 404 Credit Not Found
+- 500 Failed to Generate Credit Note HTML
+
+Example
+
+```bash
+# Generate credit note HTML
+curl http://localhost:3000/credits/credit/generate/5
+
+# Save to file
+curl http://localhost:3000/credits/credit/generate/5 > credit_note.html
+
+# Print or convert to PDF
+wkhtmltopdf http://localhost:3000/credits/credit/generate/5 credit_note.pdf
+```
+
+## Invoice Endpoints
 
 Invoices represent sales to customers and adjust the customer's balance.
 
@@ -708,38 +757,54 @@ Response (200)
 }
 ```
 
-Examples (cURL)
+#### 6. Generate Invoice HTML (A4 Size)
+
+```http
+GET /invoices/invoice/generate/:id
+```
+
+Behavior
+
+- Fetches the invoice with all related data (customer, line items, taxes, packaging, transportation).
+- Generates a professional A4-sized HTML invoice document.
+- Calculates and displays all amounts, taxes, and discounts.
+- Returns HTML directly (Content-Type: text/html).
+
+Response (200)
+
+Returns A4-sized HTML document with:
+
+- Company details and invoice header
+- Customer billing information
+- Product line items with rates, quantities, and discounts
+- Tax calculations (displays both percentage and amount)
+- Packaging and transportation charges
+- Subtotal, total, amount paid, and remaining balance
+
+The HTML uses:
+
+- A4 dimensions (210mm × 297mm)
+- Print-ready styling with @page rules
+- Rupee (₹) currency formatting
+- Professional invoice layout
+
+Errors
+
+- 400 Invalid Invoice ID
+- 404 Invoice Not Found
+- 500 Failed to Generate Invoice
+
+Example
 
 ```bash
-# Create an invoice (customerId in body)
-curl -X POST http://localhost:3000/invoices \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customerId": 3,
-    "totalAmount": 1000,
-    "amountDiscount": 50,
-    "percentDiscount": 5,
-    "finalAmount": 1035,
-    "paidByCustomer": 500,
-    "invoiceLineItems": [
-      { "productId": 1, "productQuantity": 3, "productAmountDiscount": 10, "productPercentDiscount": 2 }
-    ],
-    "taxLineItems": [ { "name": "GST", "percent": 3, "amount": 30 } ],
-    "packagingLineItems": [ { "name": "Box", "amount": 20 } ],
-    "transportationLineItems": [ { "name": "Delivery", "amount": 40 } ]
-  }'
+# Generate invoice HTML
+curl http://localhost:3000/invoices/invoice/generate/12
 
-# Get all invoices
-curl http://localhost:3000/invoices
+# Save to file
+curl http://localhost:3000/invoices/invoice/generate/12 > invoice.html
 
-# Get invoices by customer
-curl http://localhost:3000/invoices/customer/3
-
-# Get invoice by id
-curl http://localhost:3000/invoices/12
-
-# Void an invoice
-curl -X PUT http://localhost:3000/invoices/void/12
+# Print or convert to PDF using browser or tools like wkhtmltopdf
+wkhtmltopdf http://localhost:3000/invoices/invoice/generate/12 invoice.pdf
 ```
 
 ## 🗄️ Database Schema
