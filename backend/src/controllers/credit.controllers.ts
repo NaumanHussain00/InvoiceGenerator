@@ -172,7 +172,8 @@ export const generateCredit = async (req: Request, res: Response) => {
             id: true,
             name: true,
             // businessName: true,
-            // address: true,
+            address: true,
+            firm: true,
             // city: true,
             // state: true,
           },
@@ -221,7 +222,6 @@ export const generateCredit = async (req: Request, res: Response) => {
             font-size: 45px;
             font-weight: bold;
             margin-bottom: 10px;
-            color: #4B00FF;
           }
           .header {
             display: flex;
@@ -300,8 +300,9 @@ export const generateCredit = async (req: Request, res: Response) => {
           <div class="details">
             <div>
               <strong>Billed To</strong><br />
-              ${customer.name}<br />
-             
+              Name: ${customer.name}<br />
+              Firm: ${customer.firm || "No Firm"}<br />
+              Address: ${customer.address || "No Address"}<br />
             </div>
 
             <div>

@@ -115,6 +115,7 @@ GET /customers
       "name": "John Doe",
       "phone": "123-456-7890",
       "firm": "Acme Corp",
+      "address": "1234 Main Street, City, State 12345",
       "balance": 0,
       "createdAt": "2024-01-15T10:30:00.000Z",
       "updatedAt": "2024-01-15T10:30:00.000Z"
@@ -139,6 +140,7 @@ Content-Type: application/json
   "name": "John Doe",
   "phone": "123-456-7890",
   "firm": "Acme Corp",
+  "address": "1234 Main Street, City, State 12345",
   "balance": 0
 }
 ```
@@ -152,6 +154,7 @@ Content-Type: application/json
     "name": "John Doe",
     "phone": "123-456-7890",
     "firm": "Acme Corp",
+    "address": "1234 Main Street, City, State 12345",
     "balance": 0,
     "createdAt": "2024-01-15T10:30:00.000Z",
     "updatedAt": "2024-01-15T10:30:00.000Z"
@@ -185,6 +188,7 @@ GET /customers/:id
   "name": "John Doe",
   "phone": "123-456-7890",
   "firm": "Acme Corp",
+  "address": "1234 Main Street, City, State 12345",
   "balance": 0,
   "createdAt": "2024-01-15T10:30:00.000Z",
   "updatedAt": "2024-01-15T10:30:00.000Z"
@@ -213,6 +217,7 @@ Content-Type: application/json
   "name": "Jane Doe",
   "phone": "098-765-4321",
   "firm": "New Corp",
+  "address": "5678 New Avenue, Another City, State 67890",
   "balance": 100
 }
 ```
@@ -225,6 +230,7 @@ Content-Type: application/json
   "name": "Jane Doe",
   "phone": "098-765-4321",
   "firm": "New Corp",
+  "address": "5678 New Avenue, Another City, State 67890",
   "balance": 100,
   "createdAt": "2024-01-15T10:30:00.000Z",
   "updatedAt": "2024-01-15T14:25:00.000Z"
@@ -827,6 +833,7 @@ model Customer {
   name      String
   phone     String    @unique
   firm      String    @unique
+  address   String?
   balance   Float
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt

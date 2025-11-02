@@ -531,7 +531,6 @@ export async function generateInvoiceById(req: Request, res: Response) {
       <div class="header">
         <div>
           <div class="title">Invoice</div>
-          <div style="font-size: 18px;">Customer Invoice #${invoice.id}</div>
         </div>
         <div class="company-details">
           <strong>YOUR COMPANY</strong><br />
@@ -545,11 +544,10 @@ export async function generateInvoiceById(req: Request, res: Response) {
       <div class="details">
         <div>
           <strong>Billed To</strong><br />
-          ${invoice.customer.name}<br />
           Customer ID: ${invoice.customer.id}<br />
-          ${invoice.customer.firm || "No Address"}<br />
-          ${invoice.customer || ""} ${invoice.customer || ""}<br />
-          ${invoice.customer || ""}
+          ${invoice.customer.name}<br />
+          ${invoice.customer.firm || "No Firm"}<br />
+          ${invoice.customer.address || "No Address"}<br />
         </div>
         <div>
           <table style="width: 100%;">

@@ -34,6 +34,7 @@ model Customer {
   name      String
   phone     String    @unique
   firm      String    @unique
+  address   String?
   balance   Float
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt

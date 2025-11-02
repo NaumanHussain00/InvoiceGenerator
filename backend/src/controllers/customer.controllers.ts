@@ -21,7 +21,7 @@ export const getAllCustomers = async (_req: Request, res: Response) => {
 
 // Create a New Customer
 export const createCustomer = async (req: Request, res: Response) => {
-  const { name, firm, phone, balance } = req.body;
+  const { name, phone, firm, address, balance } = req.body;
 
   // Validate required fields
   if (!name || typeof name !== "string" || !name.trim()) {
@@ -64,6 +64,7 @@ export const createCustomer = async (req: Request, res: Response) => {
         name: name.trim(),
         firm: firm.trim(),
         phone: phone.trim(),
+        address: address ? address.trim() : "",
         balance,
       },
     });
