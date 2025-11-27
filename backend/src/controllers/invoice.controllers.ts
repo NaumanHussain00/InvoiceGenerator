@@ -296,6 +296,268 @@ export async function voidInvoice(req: Request, res: Response) {
   }
 }
 
+// ✅ Search invoices with filters
+export async function searchInvoices(req: Request, res: Response) {
+  const { invoiceId, phone, customerName, dateFrom, dateTo } = req.query;
+
+  console.log("Search request received:", {
+    invoiceId,
+    phone,
+    customerName,
+    dateFrom,
+    dateTo,
+  });
+
+  try {
+    const where: any = {};
+
+    // Filter by invoice ID
+    if (invoiceId) {
+      const id = Number(invoiceId);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res
+          .status(400)
+          .json(
+            new ResponseEntity(
+              null,
+              "Invoice ID must be a positive integer",
+              400
+            )
+          );
+      }
+      where.id = id;
+    }
+
+    // Filter by customer phone or name (SQLite compatible)
+    if (phone || customerName) {
+      where.customer = {};
+      if (phone) {
+        where.customer.phone = { contains: String(phone) };
+      }
+      if (customerName) {
+        // SQLite doesn't support mode: 'insensitive', so remove it
+        where.customer.name = { contains: String(customerName) };
+      }
+    }
+
+    // Filter by date range
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) {
+        const fromDate = new Date(String(dateFrom));
+        if (isNaN(fromDate.getTime())) {
+          return res
+            .status(400)
+            .json(
+              new ResponseEntity(
+                null,
+                "Invalid dateFrom format. Use YYYY-MM-DD",
+                400
+              )
+            );
+        }
+        where.createdAt.gte = fromDate;
+      }
+      if (dateTo) {
+        const toDate = new Date(String(dateTo));
+        if (isNaN(toDate.getTime())) {
+          return res
+            .status(400)
+            .json(
+              new ResponseEntity(
+                null,
+                "Invalid dateTo format. Use YYYY-MM-DD",
+                400
+              )
+            );
+        }
+        toDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = toDate;
+      }
+    }
+
+    console.log("Search where clause:", JSON.stringify(where, null, 2));
+
+    const invoices = await prisma.invoice.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        customer: true,
+        invoiceLineItems: { include: { product: true } },
+        taxLineItems: true,
+        packagingLineItems: true,
+        transportationLineItems: true,
+      },
+    });
+
+    console.log(`Found ${invoices.length} invoices`);
+
+    return res
+      .status(200)
+      .json(new ResponseEntity(invoices, "Invoices Search Results", 200));
+  } catch (error: any) {
+    console.error("Search error:", error);
+    return res
+      .status(500)
+      .json(
+        new ResponseEntity(
+          null,
+          error.message || "Failed to Search Invoices",
+          500
+        )
+      );
+  }
+}
+
+// ✅ Update invoice
+export async function updateInvoice(req: Request, res: Response) {
+  const invoiceId = Number(req.params.id);
+  if (!Number.isInteger(invoiceId)) {
+    return res
+      .status(400)
+      .json(new ResponseEntity(null, "Invalid Invoice ID", 400));
+  }
+
+  const {
+    totalAmount,
+    amountDiscount,
+    percentDiscount,
+    finalAmount,
+    paidByCustomer,
+    invoiceLineItems,
+    taxLineItems,
+    packagingLineItems,
+    transportationLineItems,
+  } = req.body;
+
+  try {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { customer: true },
+    });
+
+    if (!invoice) {
+      return res
+        .status(404)
+        .json(new ResponseEntity(null, "Invoice Not Found", 404));
+    }
+
+    if (invoice.status === "VOID") {
+      return res
+        .status(400)
+        .json(new ResponseEntity(null, "Cannot Update Voided Invoice", 400));
+    }
+
+    const updatedInvoice = await prisma.$transaction(async (tx) => {
+      // Update invoice basic fields
+      const updated = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          totalAmount: totalAmount ?? invoice.totalAmount,
+          amountDiscount: amountDiscount ?? invoice.amountDiscount,
+          percentDiscount: percentDiscount ?? invoice.percentDiscount,
+          finalAmount: finalAmount ?? invoice.finalAmount,
+          paidByCustomer: paidByCustomer ?? invoice.paidByCustomer,
+          remainingBalance:
+            invoice.custPrevBalance +
+            (finalAmount ?? invoice.finalAmount) -
+            (paidByCustomer ?? invoice.paidByCustomer),
+        },
+      });
+
+      // Update customer balance
+      await tx.customer.update({
+        where: { id: invoice.customerId },
+        data: { balance: updated.remainingBalance },
+      });
+
+      // Update line items if provided
+      if (invoiceLineItems) {
+        await tx.invoiceLineItem.deleteMany({ where: { invoiceId } });
+        if (invoiceLineItems.length) {
+          await tx.invoiceLineItem.createMany({
+            data: invoiceLineItems.map((item: any) => ({
+              invoiceId,
+              productId: item.productId,
+              productQuantity: item.productQuantity,
+              productAmountDiscount: item.productAmountDiscount,
+              productPercentDiscount: item.productPercentDiscount,
+            })),
+          });
+        }
+      }
+
+      if (taxLineItems) {
+        await tx.taxLineItem.deleteMany({ where: { invoiceId } });
+        if (taxLineItems.length) {
+          await tx.taxLineItem.createMany({
+            data: taxLineItems.map((tax: any) => ({
+              invoiceId,
+              name: tax.name,
+              percent: tax.percent,
+              amount: tax.amount,
+            })),
+          });
+        }
+      }
+
+      if (packagingLineItems) {
+        await tx.packagingLineItem.deleteMany({ where: { invoiceId } });
+        if (packagingLineItems.length) {
+          await tx.packagingLineItem.createMany({
+            data: packagingLineItems.map((item: any) => ({
+              invoiceId,
+              name: item.name,
+              amount: item.amount,
+            })),
+          });
+        }
+      }
+
+      if (transportationLineItems) {
+        await tx.transportationLineItem.deleteMany({ where: { invoiceId } });
+        if (transportationLineItems.length) {
+          await tx.transportationLineItem.createMany({
+            data: transportationLineItems.map((item: any) => ({
+              invoiceId,
+              name: item.name,
+              amount: item.amount,
+            })),
+          });
+        }
+      }
+
+      return tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          customer: true,
+          invoiceLineItems: { include: { product: true } },
+          taxLineItems: true,
+          packagingLineItems: true,
+          transportationLineItems: true,
+        },
+      });
+    });
+
+    return res
+      .status(200)
+      .json(
+        new ResponseEntity(updatedInvoice, "Invoice Updated Successfully", 200)
+      );
+  } catch (error: any) {
+    console.error(error);
+    return res
+      .status(500)
+      .json(
+        new ResponseEntity(
+          null,
+          error.message || "Failed to Update Invoice",
+          500
+        )
+      );
+  }
+}
+
 // ✅ Generate Invoice by ID
 export async function generateInvoiceById(req: Request, res: Response) {
   console.log("Generating invoice for ID:", req.params.id);

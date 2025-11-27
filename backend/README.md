@@ -1,6 +1,6 @@
 # Invoice Backend API
 
-A RESTful API for managing customers and invoices built with Node.js, Express, TypeScript, and Prisma.
+A RESTful API for managing customers, products, invoices, credits, and customer ledger built with Node.js, Express, TypeScript, and Prisma.
 
 ## 🚀 Tech Stack
 
@@ -9,11 +9,11 @@ A RESTful API for managing customers and invoices built with Node.js, Express, T
 - **TypeScript** - Type-safe JavaScript
 - **Prisma** - ORM for database management
 - **PostgreSQL** - Database
+- **SQLite** - Database (local development)
 
 ## 📋 Prerequisites
 
 - Node.js (v18 or higher)
-- PostgreSQL (v14 or higher)
 - npm or yarn
 
 ## 🛠️ Installation
@@ -32,22 +32,24 @@ A RESTful API for managing customers and invoices built with Node.js, Express, T
 
 3. **Set up environment variables**
 
-   Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (this project uses SQLite for local development):
 
-   ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/invoice?schema=public"
-   PORT=3000
-   ```
+```env
+DATABASE_URL="file:./dev.db"
+PORT=3000
+```
 
 4. **Set up the database**
 
-   ```bash
-   # Run migrations
-   npx prisma migrate dev
+For a local SQLite development database you can push the Prisma schema directly (no SQL migrations needed):
 
-   # Generate Prisma Client
-   npx prisma generate
-   ```
+```bash
+# Push schema to SQLite (creates dev.db)
+npx prisma db push
+
+# Generate Prisma Client
+npx prisma generate
+```
 
 5. **Start the server**
 
@@ -98,6 +100,132 @@ http://localhost:3000
 ```
 
 ### Customer Endpoints
+
+#### Customer Ledger & History
+
+##### Get Customer Ledger (All Customers with Balances)
+
+```http
+GET /customers/ledger
+```
+
+Returns all customers with their current balances, total amount owed across all customers, and customer count.
+
+**Response (200)**
+
+```json
+{
+  "data": {
+    "customers": [
+      {
+        "id": 1,
+        "name": "John Doe",
+        "phone": "9876543210",
+        "firm": "Acme Corp",
+        "balance": 1500.5
+      },
+      {
+        "id": 2,
+        "name": "Jane Smith",
+        "phone": "9876543211",
+        "firm": "Smith Enterprises",
+        "balance": 2300.0
+      }
+    ],
+    "totalOwed": 3800.5,
+    "customerCount": 2
+  },
+  "message": "Ledger data fetched successfully",
+  "statusCode": 200
+}
+```
+
+**Use Case**: Display customer ledger overview with total outstanding balances.
+
+##### Get Customer Transaction History
+
+```http
+GET /customers/history/:customerId
+```
+
+Returns complete transaction history for a specific customer, including all invoices and credits with balance tracking.
+
+**Response (200)**
+
+```json
+{
+  "data": {
+    "customer": {
+      "id": 1,
+      "name": "John Doe",
+      "phone": "9876543210",
+      "firm": "Acme Corp",
+      "balance": 1500.5
+    },
+    "transactions": [
+      {
+        "type": "invoice",
+        "id": 5,
+        "date": "2025-11-20T10:30:00.000Z",
+        "amount": 2000.0,
+        "paid": 500.0,
+        "previousBalance": 0.0,
+        "newBalance": 1500.0,
+        "status": "ACTIVE"
+      },
+      {
+        "type": "credit",
+        "id": 3,
+        "date": "2025-11-25T14:20:00.000Z",
+        "amount": 0,
+        "paid": 500.0,
+        "previousBalance": 2000.0,
+        "newBalance": 1500.0,
+        "status": "ACTIVE"
+      }
+    ],
+    "totalInvoices": 1,
+    "totalCredits": 1
+  },
+  "message": "Customer history fetched successfully",
+  "statusCode": 200
+}
+```
+
+**Transaction Fields**:
+
+- `type`: "invoice" or "credit"
+- `id`: Transaction ID (invoiceId or creditId)
+- `date`: Transaction creation date
+- `amount`: Invoice amount (0 for credits)
+- `paid`: Amount paid by customer
+- `previousBalance`: Balance before transaction
+- `newBalance`: Balance after transaction
+- `status`: "ACTIVE" or "VOID"
+
+**Use Case**: Display complete transaction history in customer ledger. Click any transaction to view full invoice/credit document.
+
+**Error Response (400)**
+
+```json
+{
+  "data": null,
+  "message": "Invalid customer ID",
+  "statusCode": 400
+}
+```
+
+**Error Response (404)**
+
+```json
+{
+  "data": null,
+  "message": "Customer not found",
+  "statusCode": 404
+}
+```
+
+#### Basic Customer Operations
 
 #### 1. Get All Customers
 
@@ -509,22 +637,25 @@ Responses
 GET /credits/credit/generate/:creditId
 ```
 
-Behavior
+**Behavior**:
 
-- Fetches the credit record with customer information.
-- Generates a professional A4-sized HTML credit note document.
-- Displays previous balance, amount paid, and new balance.
-- Returns HTML directly (Content-Type: text/html).
+- Fetches the credit record with customer information
+- Generates a professional A4-sized HTML credit note document
+- Displays previous balance, amount paid, and new balance
+- Returns HTML directly (Content-Type: text/html)
 
-Response (200)
+**Response (200)**
 
 Returns A4-sized HTML document with:
 
-- Credit note header with credit ID and date
-- Company details
-- Customer information
-- Credit status (ACTIVE/VOID)
-- Previous balance, amount paid, and new balance
+- Credit note header with credit ID and date issued
+- Company details (company name, address, contact)
+- Customer information (name, firm, address)
+- Credit status badge (ACTIVE/VOID)
+- Transaction details table:
+  - Previous balance
+  - Amount paid by customer
+  - New balance (highlighted)
 - Professional credit note layout matching invoice design
 
 The HTML uses:
@@ -532,14 +663,23 @@ The HTML uses:
 - A4 dimensions (210mm × 297mm)
 - Print-ready styling with @page rules
 - Rupee (₹) currency formatting
-- Consistent branding with invoice template
+- Purple accent color (#4B00FF) for branding consistency
+- Responsive table layout
 
-Errors
+**Use Case**:
 
+- Display credit notes in mobile app via WebView
+- Click credit transactions in ledger to view full credit note
+- Generate printable/downloadable credit notes
+- Payment receipt for customers
+
+**Errors**:
+
+- 400 Invalid Credit ID
 - 404 Credit Not Found
 - 500 Failed to Generate Credit Note HTML
 
-Example
+**Example**
 
 ```bash
 # Generate credit note HTML
@@ -548,8 +688,11 @@ curl http://localhost:3000/credits/credit/generate/5
 # Save to file
 curl http://localhost:3000/credits/credit/generate/5 > credit_note.html
 
-# Print or convert to PDF
+# Convert to PDF using wkhtmltopdf
 wkhtmltopdf http://localhost:3000/credits/credit/generate/5 credit_note.pdf
+
+# Or open in browser
+open http://localhost:3000/credits/credit/generate/5
 ```
 
 ## Invoice Endpoints
@@ -763,29 +906,156 @@ Response (200)
 }
 ```
 
-#### 6. Generate Invoice HTML (A4 Size)
+#### 6. Search Invoices
+
+```http
+GET /invoices/search?invoiceId=&phone=&customerName=&dateFrom=&dateTo=
+```
+
+**Query Parameters** (at least one required):
+
+- `invoiceId`: Search by invoice ID (exact match)
+- `phone`: Search by customer phone (partial match)
+- `customerName`: Search by customer name (partial match)
+- `dateFrom`: Start date (YYYY-MM-DD format)
+- `dateTo`: End date (YYYY-MM-DD format)
+
+**Response (200)**
+
+```json
+{
+  "data": [
+    {
+      "id": 5,
+      "customerId": 1,
+      "totalAmount": 2000.0,
+      "finalAmount": 2050.0,
+      "paidByCustomer": 500.0,
+      "remainingBalance": 1550.0,
+      "status": "ACTIVE",
+      "createdAt": "2025-11-20T10:30:00.000Z",
+      "customer": {
+        "id": 1,
+        "name": "John Doe",
+        "phone": "9876543210",
+        "firm": "Acme Corp"
+      }
+    }
+  ],
+  "message": "Invoices Search Results",
+  "statusCode": 200
+}
+```
+
+**Use Case**: Search invoices by various criteria in the Edit Invoice page.
+
+**Error Response (400)**
+
+```json
+{
+  "data": null,
+  "message": "Invalid dateFrom format. Use YYYY-MM-DD",
+  "statusCode": 400
+}
+```
+
+#### 7. Update Invoice
+
+```http
+PUT /invoices/:id
+Content-Type: application/json
+```
+
+**Request Body** (all fields optional)
+
+```json
+{
+  "totalAmount": 1200,
+  "amountDiscount": 60,
+  "percentDiscount": 0,
+  "finalAmount": 1240,
+  "paidByCustomer": 600,
+  "invoiceLineItems": [
+    {
+      "productId": 1,
+      "productQuantity": 4,
+      "productAmountDiscount": 15,
+      "productPercentDiscount": 0
+    }
+  ],
+  "taxLineItems": [
+    {
+      "name": "GST",
+      "percent": 5,
+      "amount": 60
+    }
+  ],
+  "packagingLineItems": [
+    {
+      "name": "Premium Box",
+      "amount": 25
+    }
+  ],
+  "transportationLineItems": [
+    {
+      "name": "Express Delivery",
+      "amount": 50
+    }
+  ]
+}
+```
+
+**Behavior**:
+
+- Cannot update VOID invoices
+- Recalculates customer balance based on new amounts
+- Replaces line items completely if provided
+- Updates invoice and customer balance atomically
+
+**Response (200)**
+
+```json
+{
+  "data": {
+    /* updated invoice with all relations */
+  },
+  "message": "Invoice Updated Successfully",
+  "statusCode": 200
+}
+```
+
+**Errors**:
+
+- 400 Invalid Invoice ID
+- 400 Cannot Update Voided Invoice
+- 404 Invoice Not Found
+- 500 Failed to Update Invoice
+
+#### 8. Generate Invoice HTML (A4 Size)
 
 ```http
 GET /invoices/invoice/generate/:id
 ```
 
-Behavior
+**Behavior**:
 
-- Fetches the invoice with all related data (customer, line items, taxes, packaging, transportation).
-- Generates a professional A4-sized HTML invoice document.
-- Calculates and displays all amounts, taxes, and discounts.
-- Returns HTML directly (Content-Type: text/html).
+- Fetches the invoice with all related data (customer, line items, taxes, packaging, transportation)
+- Generates a professional A4-sized HTML invoice document
+- Calculates and displays all amounts, taxes, and discounts
+- Returns HTML directly (Content-Type: text/html)
 
-Response (200)
+**Response (200)**
 
 Returns A4-sized HTML document with:
 
 - Company details and invoice header
-- Customer billing information
-- Product line items with rates, quantities, and discounts
+- Invoice number and date
+- Customer billing information (name, firm, address)
+- Product line items table with rates, quantities, and discounts
 - Tax calculations (displays both percentage and amount)
 - Packaging and transportation charges
-- Subtotal, total, amount paid, and remaining balance
+- Subtotal, total discount, taxes, final amount
+- Amount paid and remaining balance
 
 The HTML uses:
 
@@ -793,14 +1063,21 @@ The HTML uses:
 - Print-ready styling with @page rules
 - Rupee (₹) currency formatting
 - Professional invoice layout
+- Purple accent color (#4B00FF)
 
-Errors
+**Use Case**:
+
+- Display invoices in mobile app via WebView
+- Click invoice transactions in ledger to view full invoice
+- Generate printable/downloadable invoices
+
+**Errors**:
 
 - 400 Invalid Invoice ID
 - 404 Invoice Not Found
 - 500 Failed to Generate Invoice
 
-Example
+**Example**
 
 ```bash
 # Generate invoice HTML
@@ -809,8 +1086,11 @@ curl http://localhost:3000/invoices/invoice/generate/12
 # Save to file
 curl http://localhost:3000/invoices/invoice/generate/12 > invoice.html
 
-# Print or convert to PDF using browser or tools like wkhtmltopdf
+# Convert to PDF using wkhtmltopdf
 wkhtmltopdf http://localhost:3000/invoices/invoice/generate/12 invoice.pdf
+
+# Or open in browser
+open http://localhost:3000/invoices/invoice/generate/12
 ```
 
 ## 🗄️ Database Schema
@@ -947,20 +1227,90 @@ Notes
 - Line items store quantity and discounts; product price snapshot is not stored.
 - Credits are independent of invoice creation.
 
+## 🔄 Complete Workflow Example
+
+### Typical Invoice & Payment Flow
+
+1. **Create Customer**
+
+   ```bash
+   POST /customers
+   # Creates customer with initial balance 0
+   ```
+
+2. **Create Products**
+
+   ```bash
+   POST /products
+   # Add products to catalog
+   ```
+
+3. **Create Invoice**
+
+   ```bash
+   POST /invoices
+   # Customer balance increases by (finalAmount - paidByCustomer)
+   ```
+
+4. **View Customer Ledger**
+
+   ```bash
+   GET /customers/ledger
+   # See all customers with outstanding balances
+   ```
+
+5. **View Transaction History**
+
+   ```bash
+   GET /customers/history/:customerId
+   # See all invoices and credits for customer
+   ```
+
+6. **View Invoice Document**
+
+   ```bash
+   GET /invoices/invoice/generate/:id
+   # Returns HTML invoice (clickable from ledger)
+   ```
+
+7. **Record Payment**
+
+   ```bash
+   POST /credits/customer/:customerId
+   # Customer balance decreases by payment amount
+   ```
+
+8. **View Credit Note Document**
+
+   ```bash
+   GET /credits/credit/generate/:creditId
+   # Returns HTML credit note (clickable from ledger)
+   ```
+
+9. **Void Transaction** (if needed)
+   ```bash
+   PUT /invoices/void/:id
+   # OR
+   PUT /credits/void/:id
+   # Reverts balance to previous state
+   ```
+
 ## 📝 Scripts
 
 ```bash
 # Development
-npm run dev          # Start dev server with hot reload
+npm run dev          # Start dev server with hot reload (nodemon)
 
 # Database
-npx prisma migrate dev    # Create and apply migrations
+npx prisma db push        # Push schema to SQLite (for development)
 npx prisma generate       # Generate Prisma Client
 npx prisma studio         # Open Prisma Studio (DB GUI)
+npx prisma migrate dev    # Create and apply migrations (for production DB)
 npx prisma migrate reset  # Reset database
 
 # Production
 npm start            # Start production server
+npm run build        # Build TypeScript (if needed)
 ```
 
 ## ⚠️ Error Codes
@@ -977,10 +1327,10 @@ npm start            # Start production server
 
 ## 🔐 Environment Variables
 
-| Variable       | Description                  | Example                                         |
-| -------------- | ---------------------------- | ----------------------------------------------- |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/invoice` |
-| `PORT`         | Server port                  | `3000`                                          |
+| Variable       | Description                | Example         |
+| -------------- | -------------------------- | --------------- |
+| `DATABASE_URL` | Database connection string | `file:./dev.db` |
+| `PORT`         | Server port                | `3000`          |
 
 ## 🤝 Contributing
 
@@ -998,24 +1348,131 @@ MIT
 
 Nauman Hussain
 
-## 🐛 Known Issues
+## 🎯 Key Features
 
-- None currently
+### Customer Ledger System
 
-### Credit route matching edge case
+- **Real-time Balance Tracking**: Every invoice and credit automatically updates customer balance
+- **Transaction History**: Complete chronological history of all transactions per customer
+- **Clickable Documents**: Frontend can display full invoice/credit HTML by calling generate endpoints
+- **Balance Calculation**:
+  - Invoice: `newBalance = previousBalance + finalAmount - paidByCustomer`
+  - Credit: `newBalance = previousBalance - amountPaidByCustomer`
+- **Void Protection**: Voiding reverses balance changes atomically
 
-- In Express, generic routes like `GET /credits/:id` can shadow more specific routes like `GET /credits/customer/:customerId` if declared first.
-- Ensure the more specific path is registered before the generic `/:id` path (or use a distinct path like `/credits/by-customer/:customerId`).
+### Document Generation
 
-Example preferred order:
+- **A4-Sized PDFs**: Professional print-ready documents
+- **Consistent Branding**: Purple accent color (#4B00FF) across all documents
+- **Detailed Invoices**: Line items, taxes, packaging, transportation
+- **Clean Credit Notes**: Payment receipts with balance tracking
+- **WebView Compatible**: HTML output works in React Native WebView
+
+### Data Integrity
+
+- **Atomic Transactions**: All balance updates use Prisma transactions
+- **Cascade Relationships**: Deleting invoice/credit properly handles line items
+- **Status Tracking**: ACTIVE/VOID status prevents accidental modifications
+- **Validation**: Input validation on all endpoints
+
+## 🐛 Known Issues & Best Practices
+
+### Route Ordering
+
+In Express, generic routes like `GET /credits/:id` can shadow more specific routes like `GET /credits/customer/:customerId` if declared first.
+
+**Solution**: Register more specific paths before generic ones
 
 ```ts
-// More specific first
+// ✅ Correct order
 router.get("/customer/:customerId", getCreditsByCustomerId);
-// Then generic by id
+router.get("/credit/generate/:creditId", generateCredit);
 router.get("/:id", getCreditById);
+
+// ❌ Wrong order - /:id would catch everything
+router.get("/:id", getCreditById);
+router.get("/customer/:customerId", getCreditsByCustomerId);
 ```
 
+### Balance Consistency
+
+- Always use the `/customers/ledger` and `/customers/history/:id` endpoints to display balances
+- Don't cache balance values in the frontend
+- Refresh ledger after creating invoices/credits
+
+### Database Migrations
+
+- Use `npx prisma db push` for quick SQLite development
+- Use `npx prisma migrate dev` for production-grade migrations
+- Always backup database before schema changes
+
+### Error Handling
+
+All endpoints return consistent error format:
+
+```json
+{
+  "data": null,
+  "message": "Error description",
+  "statusCode": 400 // or 404, 409, 500
+}
+```
+
+## 🔐 Security Considerations
+
+### Current Implementation
+
+- No authentication/authorization (suitable for local/internal use)
+- SQLite database (not recommended for production with multiple users)
+- CORS enabled for all origins
+
+### For Production Deployment
+
+Consider adding:
+
+- JWT authentication
+- API rate limiting
+- Input sanitization
+- PostgreSQL or MySQL database
+- Environment-based CORS configuration
+- HTTPS/TLS encryption
+- Database connection pooling
+- Backup strategy
+
+## 📈 Performance Tips
+
+- Use Prisma's `include` selectively to avoid over-fetching
+- Index frequently queried fields (phone, firm in Customer)
+- Consider pagination for large result sets
+- Use database transactions for balance updates
+- Cache product catalog if it rarely changes
+
+## 🧪 Testing
+
+```bash
+# Install testing dependencies
+npm install --save-dev jest @types/jest supertest @types/supertest
+
+# Run tests
+npm test
+
+# Test specific endpoint
+curl -X GET http://localhost:3000/customers/ledger
+curl -X GET http://localhost:3000/customers/history/1
+```
+
+## 📚 Additional Resources
+
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Express.js Guide](https://expressjs.com/en/guide/routing.html)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [SQLite Documentation](https://www.sqlite.org/docs.html)
+
 ## 📮 Contact
+
+**Nauman Hussain**
+
+- GitHub: [@NaumanHussain00](https://github.com/NaumanHussain00)
+- Repository: [InvoiceGenerator](https://github.com/NaumanHussain00/InvoiceGenerator)
 
 For issues and questions, please open a GitHub issue.

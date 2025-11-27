@@ -181,3 +181,147 @@ export const deleteCustomer = async (req: Request, res: Response) => {
     return res.status(500).json(response);
   }
 };
+
+// Get Customer Ledger (all customers with outstanding balances)
+export const getCustomerLedger = async (_req: Request, res: Response) => {
+  try {
+    const customers = await prisma.customer.findMany({
+      where: {
+        balance: {
+          not: 0,
+        },
+      },
+      orderBy: {
+        balance: "desc",
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        firm: true,
+        balance: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    const totalOwed = customers.reduce(
+      (sum, customer) => sum + customer.balance,
+      0
+    );
+
+    return res.status(200).json(
+      new ResponseEntity(
+        {
+          customers,
+          totalOwed,
+          customerCount: customers.length,
+        },
+        "Customer Ledger Retrieved Successfully",
+        200
+      )
+    );
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json(new ResponseEntity(null, "Internal Server Error", 500));
+  }
+};
+
+// Get Customer History (all invoices and credits for a customer)
+export const getCustomerHistory = async (req: Request, res: Response) => {
+  const customerId = Number(req.params.customerId);
+
+  if (!Number.isInteger(customerId)) {
+    const response = new ResponseEntity(null, "Invalid Customer ID", 400);
+    return res.status(400).json(response);
+  }
+
+  try {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+    });
+
+    if (!customer) {
+      const response = new ResponseEntity(null, "Customer not Found", 404);
+      return res.status(404).json(response);
+    }
+
+    // Get all invoices for this customer
+    const invoices = await prisma.invoice.findMany({
+      where: { customerId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        totalAmount: true,
+        amountDiscount: true,
+        percentDiscount: true,
+        finalAmount: true,
+        custPrevBalance: true,
+        paidByCustomer: true,
+        remainingBalance: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    // Get all credits for this customer
+    const credits = await prisma.credit.findMany({
+      where: { customerId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        previousBalance: true,
+        amountPaidByCustomer: true,
+        finalBalance: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    // Combine and sort by date
+    const transactions = [
+      ...invoices.map((inv) => ({
+        type: "invoice",
+        id: inv.id,
+        date: inv.createdAt,
+        amount: inv.finalAmount,
+        paid: inv.paidByCustomer,
+        previousBalance: inv.custPrevBalance,
+        newBalance: inv.remainingBalance,
+        status: inv.status,
+        details: inv,
+      })),
+      ...credits.map((cred) => ({
+        type: "credit",
+        id: cred.id,
+        date: cred.createdAt,
+        amount: 0,
+        paid: cred.amountPaidByCustomer,
+        previousBalance: cred.previousBalance,
+        newBalance: cred.finalBalance,
+        status: cred.status,
+        details: cred,
+      })),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return res.status(200).json(
+      new ResponseEntity(
+        {
+          customer,
+          transactions,
+          totalInvoices: invoices.length,
+          totalCredits: credits.length,
+        },
+        "Customer History Retrieved Successfully",
+        200
+      )
+    );
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json(new ResponseEntity(null, "Internal Server Error", 500));
+  }
+};
