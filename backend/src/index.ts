@@ -14,6 +14,15 @@ app.use(cors());
 //   credentials: true,
 // }));
 
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "Server is running",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Import routes
 import customerRoutes from "./routes/customer.routes.js";
 import productRoutes from "./routes/product.routes.js";
@@ -30,8 +39,17 @@ app.use("/html", getHtmlRoutes);
 
 // Start server
 const PORT = process.env.PORT ?? 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+const HOST = "0.0.0.0";
+
+app
+  .listen(PORT, HOST, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.log(`✅ Also accessible on http://0.0.0.0:${PORT}`);
+    console.log(`✅ Android emulator can access via http://10.0.2.2:${PORT}`);
+  })
+  .on("error", (err: Error) => {
+    console.error("❌ Failed to start server:", err);
+    process.exit(1);
+  });
 
 export default app;

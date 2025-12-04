@@ -1,5 +1,8 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Dimensions } from 'react-native';
+
+const { width } = Dimensions.get('window');
+const scale = (size: number) => (width / 375) * size;
 
 interface Product {
   total: number;
@@ -31,7 +34,7 @@ interface TotalSectionProps {
   transportOptions: TransportOption[];
   amountPaid: string;
   setAmountPaid: React.Dispatch<React.SetStateAction<string>>;
-  onPaidChange?: (paidByCustomer: string) => void; // new
+  onPaidChange?: (paidByCustomer: string) => void;
 }
 
 
@@ -67,8 +70,6 @@ const TotalSection: React.FC<TotalSectionProps> = ({
   const totalAmount = subtotalAfterDiscount + taxAmount + packingTotal + transportTotal;
   const balanceAmount = totalAmount - Number(amountPaid || 0);
 
-
-
   return (
     <View style={styles.card}>
       <View style={styles.sectionHeader}>
@@ -76,23 +77,23 @@ const TotalSection: React.FC<TotalSectionProps> = ({
       </View>
 
       <View style={styles.summaryRow}>
-        <Text>Subtotal:</Text>
+        <Text style={styles.summaryLabel}>Subtotal:</Text>
         <Text style={styles.normalAmount}>₹{subtotal.toFixed(2)}</Text>
       </View>
       <View style={styles.summaryRow}>
-        <Text>Discount Amount:</Text>
+        <Text style={styles.summaryLabel}>Discount Amount:</Text>
         <Text style={styles.decreaseAmount}>- ₹{discountAmount.toFixed(2)}</Text>
       </View>
       <View style={styles.summaryRow}>
-        <Text>Tax Amount:</Text>
+        <Text style={styles.summaryLabel}>Tax Amount:</Text>
         <Text style={styles.increaseAmount}>+ ₹{taxAmount.toFixed(2)}</Text>
       </View>
       <View style={styles.summaryRow}>
-        <Text>Packing Charges:</Text>
+        <Text style={styles.summaryLabel}>Packing Charges:</Text>
         <Text style={styles.increaseAmount}>+ ₹{packingTotal.toFixed(2)}</Text>
       </View>
       <View style={styles.summaryRowLast}>
-        <Text>Transport Charges:</Text>
+        <Text style={styles.summaryLabel}>Transport Charges:</Text>
         <Text style={styles.increaseAmount}>+ ₹{transportTotal.toFixed(2)}</Text>
       </View>
 
@@ -114,16 +115,16 @@ const TotalSection: React.FC<TotalSectionProps> = ({
             if (onPaidChange) onPaidChange(value);
           }}
           placeholder="0.00"
+          placeholderTextColor="#94a3b8"
         />
-
       </View>
 
       <View
         style={[
           styles.balanceBox,
           {
-            backgroundColor: balanceAmount > 0 ? '#FFEBEE' : '#E8F5E9',
-            borderColor: balanceAmount > 0 ? '#E53935' : '#4CAF50',
+            backgroundColor: balanceAmount > 0 ? '#fef2f2' : '#f0fdf4', // red-50 : green-50
+            borderColor: balanceAmount > 0 ? '#ef4444' : '#22c55e',     // red-500 : green-500
           },
         ]}
       >
@@ -131,7 +132,7 @@ const TotalSection: React.FC<TotalSectionProps> = ({
           <Text
             style={[
               styles.balanceLabel,
-              { color: balanceAmount > 0 ? '#C62828' : '#2E7D32' },
+              { color: balanceAmount > 0 ? '#b91c1c' : '#15803d' }, // red-700 : green-700
             ]}
           >
             {balanceAmount > 0 ? 'Balance Due:' : 'Payment Complete'}
@@ -139,7 +140,7 @@ const TotalSection: React.FC<TotalSectionProps> = ({
           <Text
             style={[
               styles.balanceAmount,
-              { color: balanceAmount > 0 ? '#C62828' : '#2E7D32' },
+              { color: balanceAmount > 0 ? '#b91c1c' : '#15803d' },
             ]}
           >
             ₹{Math.abs(balanceAmount).toFixed(2)}
@@ -152,59 +153,77 @@ const TotalSection: React.FC<TotalSectionProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 30,
+    backgroundColor: '#ffffff',
+    padding: scale(12),
+    borderRadius: scale(10),
+    marginBottom: scale(20),
+    marginHorizontal: scale(8),
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: '#E8F4FF',
+    marginBottom: scale(8),
+    paddingBottom: scale(8),
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
-  sectionIcon: { fontSize: 24, marginRight: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#2C3E50' },
+  sectionTitle: {
+    fontSize: scale(16),
+    fontWeight: '700',
+    color: '#1e293b',
+  },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: scale(6),
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E6ED',
+    borderBottomColor: '#f1f5f9',
   },
   summaryRowLast: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: '#4A90E2',
+    paddingVertical: scale(6),
+    borderBottomWidth: 0,
+    marginBottom: scale(6),
+  },
+  summaryLabel: {
+    fontSize: scale(13),
+    color: '#64748b',
+    fontWeight: '500',
   },
   normalAmount: {
+    fontSize: scale(13),
     fontWeight: '600',
+    color: '#1e293b',
   },
   increaseAmount: {
+    fontSize: scale(13),
     fontWeight: '600',
-    color: '#E53935',
+    color: '#ef4444', // red-500
   },
   decreaseAmount: {
+    fontSize: scale(13),
     fontWeight: '600',
-    color: '#4CAF50',
+    color: '#22c55e', // green-500
   },
   totalBox: {
-    marginTop: 20,
-    marginBottom: 20,
-    backgroundColor: '#E8F5E9',
-    padding: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#4CAF50',
+    marginTop: scale(10),
+    marginBottom: scale(16),
+    backgroundColor: '#1e293b', // Slate-800
+    padding: scale(12),
+    borderRadius: scale(10),
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
   totalRow: {
     flexDirection: 'row',
@@ -212,47 +231,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   totalLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2E7D32',
+    fontSize: scale(14),
+    fontWeight: '700',
+    color: '#fff',
   },
   totalAmountText: {
-    fontSize: 24,
-    color: '#2E7D32',
-    fontWeight: '700',
+    fontSize: scale(18),
+    color: '#3b82f6', // Blue-500
+    fontWeight: '800',
   },
-  inputContainer: { marginBottom: 15 },
+  inputContainer: { marginBottom: scale(12) },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: 6,
+    fontSize: scale(13),
+    fontWeight: '500',
+    color: '#334155',
+    marginBottom: scale(4),
   },
   input: {
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#E0E6ED',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    backgroundColor: '#F9FBFC',
+    borderColor: '#cbd5e1',
+    borderRadius: scale(6),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(8),
+    fontSize: scale(14),
     color: '#000',
   },
   balanceBox: {
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 2,
+    padding: scale(12),
+    borderRadius: scale(10),
+    borderWidth: 1,
   },
   balanceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   balanceLabel: {
-    fontWeight: '600',
+    fontSize: scale(14),
+    fontWeight: '700',
   },
   balanceAmount: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: scale(18),
+    fontWeight: '800',
   },
 });
 

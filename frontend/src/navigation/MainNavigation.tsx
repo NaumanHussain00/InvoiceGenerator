@@ -8,6 +8,7 @@ import CreditForm from '../components/homePage/credit/creditform/CreditForm';
 import LedgerPage from '../components/ledger/LedgerPage';
 import EditInvoicePage from '../components/invoice/EditInvoicePage';
 import EditProductPage from '../components/product/EditProductPage';
+import EditCustomerPage from '../components/homePage/addCustomer/editCustomerPage/EditCustomerPage';
 import InvoiceViewer from '../components/invoice/InvoiceViewer';
 import CreditViewer from '../components/credit/CreditViewer';
 
@@ -21,6 +22,7 @@ export type RootStackParamList = {
   Ledger: undefined;
   EditInvoice: undefined;
   EditProduct: undefined;
+  EditCustomer: undefined;
   InvoiceViewer: { invoiceId: string };
   CreditViewer: { creditId: string };
 };
@@ -84,6 +86,11 @@ const MainNavigation = () => {
         name="EditInvoice"
         component={EditInvoicePage}
         options={{ title: 'Edit Invoice' }}
+      />
+      <Stack.Screen
+        name="EditCustomer"
+        component={EditCustomerPage}
+        options={{ title: 'Edit Customer' }}
       />
       <Stack.Screen
         name="EditProduct"

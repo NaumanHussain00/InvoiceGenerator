@@ -216,27 +216,6 @@ App (with Password Protection)
   - Multiple search criteria options
   - Date range picker for invoice search
 
----
-
-## 📋 Remaining Features
-
-### 4. Tabular Product Display in Invoice Form
-
-**Status:** Not Started
-
-**Requirements:**
-
-- Replace current product list with table format
-- Expandable cards when product is clicked
-- Card should come to front with details
-- Suggested approach: Use DataTable or custom table component
-
----
-
-## 🚀 Getting Started
-
-### Backend Setup
-
 ```bash
 cd backend
 npm install
@@ -350,5 +329,5 @@ For issues or questions, please contact the development team or open an issue in
 
 ---
 
-**Last Updated:** November 25, 2025
-**Version:** 2.0.0
+**Last Updated:** December 04, 2025
+**Version:** 2.1.0

@@ -39,6 +39,7 @@ const DiscountSection: React.FC<DiscountSectionProps> = ({ onDiscountChange, pre
             style={[styles.input, styles.flex1]}
             keyboardType="numeric"
             placeholder="0"
+            placeholderTextColor="#94a3b8"
             value={value}
             onChangeText={setValue}
           />
@@ -67,28 +68,35 @@ const DiscountSection: React.FC<DiscountSectionProps> = ({ onDiscountChange, pre
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#f8fafc',
-    padding: scale(16),
-    borderRadius: scale(12),
-    marginBottom: scale(16),
-    marginHorizontal: '4%',
+    backgroundColor: '#ffffff',
+    padding: scale(12),
+    borderRadius: scale(10),
+    marginBottom: scale(8),
+    marginHorizontal: scale(8),
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: scale(16),
-    paddingBottom: scale(10),
+    marginBottom: scale(8),
+    paddingBottom: scale(8),
     borderBottomWidth: 1,
-    borderBottomColor: '#cbd5e1',
+    borderBottomColor: '#e2e8f0',
   },
   sectionTitle: {
-    fontSize: scale(18),
+    fontSize: scale(16),
     fontWeight: '700',
     color: '#1e293b',
   },
-  inputContainer: { marginBottom: scale(12) },
+  inputContainer: { marginBottom: scale(8) },
   label: {
-    fontSize: scale(14),
+    fontSize: scale(13),
     fontWeight: '500',
     color: '#334155',
     marginBottom: scale(4),
@@ -97,10 +105,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: scale(8),
+    borderRadius: scale(6),
     paddingHorizontal: scale(10),
     paddingVertical: scale(8),
-    fontSize: scale(15),
+    fontSize: scale(14),
     color: '#000',
     width: '100%',
   },
@@ -112,42 +120,49 @@ const styles = StyleSheet.create({
   flex1: { flex: 1 },
   toggleBtn: {
     borderWidth: 1,
-    borderColor: '#888',
-    borderRadius: scale(8),
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(10),
-    backgroundColor: 'transparent',
+    borderColor: '#cbd5e1',
+    borderRadius: scale(6),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
+    backgroundColor: '#fff',
   },
   toggleBtnSelected: {
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: '#eff6ff', // Light blue bg
+    borderColor: '#3b82f6',
   },
   selectedText: {
-    color: '#000',
-    fontWeight: '600',
+    color: '#3b82f6',
+    fontWeight: '700',
+    fontSize: scale(13),
   },
   unselectedText: {
-    color: '#000',
-    fontWeight: '500',
+    color: '#64748b',
+    fontWeight: '600',
+    fontSize: scale(13),
   },
   totalBox: {
-    marginTop: scale(16),
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    padding: scale(15),
+    marginTop: scale(12),
+    backgroundColor: '#1e293b',
+    padding: scale(12),
     borderRadius: scale(10),
-    borderWidth: 1,
-    borderColor: '#888',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
   totalLabel: {
-    fontSize: scale(16),
-    fontWeight: '600',
-    color: '#000',
+    fontSize: scale(14),
+    fontWeight: '700',
+    color: '#fff',
   },
   totalValue: {
-    fontSize: scale(20),
-    fontWeight: '700',
-    color: '#000',
+    fontSize: scale(18),
+    fontWeight: '800',
+    color: '#3b82f6',
   },
 });
 

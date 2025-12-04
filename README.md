@@ -14,15 +14,19 @@ A full-stack invoice management application with React Native mobile frontend an
 
 - Add and manage products
 - Set product prices
-- Automatic product selection in invoices
+- **Interactive Product Entry**: Single input form with an interactive table for adding and editing products in invoices
+- Automatic product selection with search and dropdown
+- **Edit Product**: Search, edit, and delete existing products
 
 ### Invoice Generation
 
 - Create invoices with multiple products
+- **Streamlined Product Entry**: Easily add, edit, and remove products using a unified input form and summary table
 - Apply discounts (percentage or amount-based)
 - Add taxes, packaging, and transportation charges
 - Generate professional A4-sized invoice PDFs
 - View invoice history
+- **Edit Invoice**: Search and view invoice details
 - **Click on invoice transactions in ledger to view full invoice**
 
 ### Credit Notes
@@ -46,6 +50,11 @@ A full-stack invoice management application with React Native mobile frontend an
 - Works on Android and iOS
 - Offline-ready architecture
 - Professional UI/UX
+
+### App Security
+
+- **App Lock**: Password protection on application launch (Default: 1234)
+- **Ledger Lock**: Separate password for sensitive ledger data (Default: 5678)
 
 ## 📁 Project Structure
 
@@ -419,6 +428,15 @@ For issues and questions:
 
 ## 📊 Version History
 
+- **v2.1.0** - Product Section Refactoring
+  - Single input form for adding products
+  - Interactive table for product management in invoices
+  - Improved UI/UX for product entry
+- **v2.0.0** - Security & Management Update
+  - App entry password protection
+  - Edit Invoice page with search filters
+  - Edit Product page
+  - Enhanced Customer Ledger
 - **v1.0.0** - Initial release
   - Customer management
   - Product management

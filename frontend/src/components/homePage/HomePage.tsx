@@ -54,6 +54,13 @@ const HomeScreen: React.FC = () => {
 
         <TouchableOpacity
           style={styles.button}
+          onPress={() => navigation.navigate('EditCustomer')}
+        >
+          <Text style={styles.buttonText}>👥 Edit Customer</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.button}
           onPress={() => navigation.navigate('EditProduct')}
         >
           <Text style={styles.buttonText}>📦 Edit Product</Text>

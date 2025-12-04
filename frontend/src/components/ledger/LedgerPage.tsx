@@ -83,6 +83,7 @@ const LedgerPage: React.FC = () => {
   const [customerHistory, setCustomerHistory] =
     useState<CustomerHistory | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     checkPasswordExists();
@@ -237,6 +238,20 @@ const LedgerPage: React.FC = () => {
   const closeHistoryModal = () => {
     setSelectedCustomer(null);
     setCustomerHistory(null);
+  };
+
+  const filterCustomers = () => {
+    if (!ledgerData || !searchQuery.trim()) {
+      return ledgerData?.customers || [];
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    return ledgerData.customers.filter(
+      customer =>
+        customer.name.toLowerCase().includes(query) ||
+        customer.phone.includes(query) ||
+        customer.firm.toLowerCase().includes(query),
+    );
   };
 
   const formatCurrency = (amount: number) => {
@@ -443,25 +458,45 @@ const LedgerPage: React.FC = () => {
       ) : (
         <>
           {ledgerData && (
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Total Customers</Text>
-                <Text style={styles.summaryValue}>
-                  {ledgerData.customerCount}
-                </Text>
+            <>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Total Customers</Text>
+                  <Text style={styles.summaryValue}>
+                    {ledgerData.customerCount}
+                  </Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryItem}>
+                  <Text style={styles.summaryLabel}>Total Owed</Text>
+                  <Text style={[styles.summaryValue, styles.totalOwed]}>
+                    {formatCurrency(ledgerData.totalOwed)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Total Owed</Text>
-                <Text style={[styles.summaryValue, styles.totalOwed]}>
-                  {formatCurrency(ledgerData.totalOwed)}
-                </Text>
+
+              <View style={styles.searchContainer}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by name, phone, or firm..."
+                  placeholderTextColor="#999"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={() => setSearchQuery('')}
+                  >
+                    <Text style={styles.clearButtonText}>✕</Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            </View>
+            </>
           )}
 
           <FlatList
-            data={ledgerData?.customers || []}
+            data={filterCustomers()}
             renderItem={renderCustomer}
             keyExtractor={item => item.id.toString()}
             contentContainerStyle={styles.listContainer}
@@ -474,7 +509,11 @@ const LedgerPage: React.FC = () => {
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No outstanding balances</Text>
+                <Text style={styles.emptyText}>
+                  {searchQuery.trim()
+                    ? 'No customers found'
+                    : 'No outstanding balances'}
+                </Text>
               </View>
             }
           />
@@ -669,6 +708,39 @@ const styles = StyleSheet.create({
   },
   totalOwed: {
     color: colors.error,
+  },
+  searchContainer: {
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.base,
+    position: 'relative',
+  },
+  searchInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: borderRadius.base,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.fontSize.base,
+    color: colors.textPrimary,
+    paddingRight: spacing['3xl'],
+  },
+  clearButton: {
+    position: 'absolute',
+    right: spacing.md,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.textSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: colors.surface,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
   },
   listContainer: {
     padding: spacing.base,

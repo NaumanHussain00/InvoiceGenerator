@@ -41,6 +41,7 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isEditable, setIsEditable] = useState(true); // 👈 controls edit
+  const [searchQuery, setSearchQuery] = useState('');
   const [errors, setErrors] = useState({
     name: '',
     phone: '',
@@ -117,6 +118,19 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
     setLoading(false);
   };
 
+  const filterCustomers = () => {
+    if (!searchQuery.trim()) {
+      return customers;
+    }
+    const query = searchQuery.toLowerCase();
+    return customers.filter(
+      c =>
+        c.name.toLowerCase().includes(query) ||
+        c.phone.includes(query) ||
+        c.firm.toLowerCase().includes(query),
+    );
+  };
+
   const handleSelectCustomer = (item: any) => {
     setCustomerData({
       name: item.name,
@@ -125,6 +139,7 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
       balance: String(item.balance ?? ''),
     });
     setShowDropdown(false);
+    setSearchQuery('');
     setIsEditable(false); // 👈 lock fields
     onSelectCustomerId?.(item.id); // 👈 send id to parent
   };
@@ -157,6 +172,7 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
           onFocus={handleNameFocus}
           onChangeText={text => setCustomerData(p => ({ ...p, name: text }))}
           placeholder="John Doe"
+          placeholderTextColor="#94a3b8"
         />
 
         {showDropdown && (
@@ -166,25 +182,38 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
             ) : customers.length === 0 ? (
               <Text style={styles.noData}>No customers found</Text>
             ) : (
-              <FlatList
-                data={customers}
-                keyExtractor={item => String(item.id)}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.dropdownItem}
-                    onPress={() => handleSelectCustomer(item)}
-                  >
-                    <Text style={styles.dropdownText}>{item.name}</Text>
-                    <Text style={styles.dropdownSub}>
-                      {item.phone} • {item.firm}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                nestedScrollEnabled
-                scrollEnabled
-                showsVerticalScrollIndicator={true}
-                style={{ maxHeight: scale(300) }} // 👈 increased height
-              />
+              <>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search customers..."
+                  placeholderTextColor="#94a3b8"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoFocus
+                />
+                <FlatList
+                  data={filterCustomers()}
+                  keyExtractor={item => String(item.id)}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.dropdownItem}
+                      onPress={() => handleSelectCustomer(item)}
+                    >
+                      <Text style={styles.dropdownText}>{item.name}</Text>
+                      <Text style={styles.dropdownSub}>
+                        {item.phone} • {item.firm}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  nestedScrollEnabled
+                  scrollEnabled
+                  showsVerticalScrollIndicator={true}
+                  style={{ maxHeight: scale(250) }}
+                  ListEmptyComponent={
+                    <Text style={styles.noData}>No customers found</Text>
+                  }
+                />
+              </>
             )}
           </View>
         )}
@@ -198,6 +227,7 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
           style={[styles.input, styles.disabledInput]}
           value={customerData.phone}
           placeholder="1234567890"
+          placeholderTextColor="#94a3b8"
         />
       </View>
 
@@ -209,6 +239,7 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
           style={[styles.input, styles.disabledInput]}
           value={customerData.firm}
           placeholder="Acme Corp"
+          placeholderTextColor="#94a3b8"
         />
       </View>
 
@@ -220,6 +251,7 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
           style={[styles.input, styles.disabledInput]}
           value={customerData.balance}
           placeholder="0"
+          placeholderTextColor="#94a3b8"
         />
       </View>
     </View>
@@ -227,55 +259,95 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
 };
 
 const styles = StyleSheet.create({
-  card: { padding: scale(16) },
-  header: {
-    fontSize: scale(18),
-    fontWeight: '700',
-    marginBottom: scale(16),
-    color: '#2C3E50',
+  card: {
+    backgroundColor: '#ffffff',
+    padding: scale(12),
+    borderRadius: scale(10),
+    marginBottom: scale(8),
+    marginHorizontal: scale(8),
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
-  inputContainer: { marginBottom: scale(12), position: 'relative' },
+  header: {
+    fontSize: scale(16),
+    fontWeight: '700',
+    marginBottom: scale(8),
+    color: '#1e293b',
+  },
+  inputContainer: { marginBottom: scale(8), position: 'relative' },
   label: {
-    fontSize: scale(14),
-    fontWeight: '600',
-    color: '#555',
+    fontSize: scale(13),
+    fontWeight: '500',
+    color: '#334155',
     marginBottom: scale(4),
   },
   input: {
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#E0E6ED',
-    borderRadius: scale(8),
+    borderColor: '#cbd5e1',
+    borderRadius: scale(6),
     paddingHorizontal: scale(10),
     paddingVertical: scale(8),
-    backgroundColor: '#F9FBFC',
-    fontSize: scale(15),
+    fontSize: scale(14),
     color: '#000',
   },
   disabledInput: {
-    backgroundColor: '#f0f0f0',
-    color: '#666',
+    backgroundColor: '#f1f5f9',
+    color: '#94a3b8',
+    borderColor: '#e2e8f0',
   },
   dropdown: {
     position: 'absolute',
-    top: scale(68),
+    top: scale(65),
     left: 0,
     right: 0,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: scale(8),
-    zIndex: 10,
+    borderColor: '#cbd5e1',
+    borderRadius: scale(6),
+    zIndex: 100,
     elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  searchInput: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(10),
+    fontSize: scale(13),
+    backgroundColor: '#f8fafc',
+    color: '#1e293b',
   },
   dropdownItem: {
     paddingVertical: scale(8),
     paddingHorizontal: scale(10),
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#f1f5f9',
   },
-  dropdownText: { fontSize: scale(15), fontWeight: '600', color: '#000' },
-  dropdownSub: { fontSize: scale(13), color: '#666' },
-  noData: { textAlign: 'center', padding: 10, color: '#777' },
+  dropdownText: { 
+    fontSize: scale(14), 
+    fontWeight: '600', 
+    color: '#1e293b',
+    marginBottom: scale(2),
+  },
+  dropdownSub: { 
+    fontSize: scale(12), 
+    color: '#64748b' 
+  },
+  noData: { 
+    textAlign: 'center', 
+    padding: scale(12), 
+    color: '#64748b',
+    fontStyle: 'italic',
+  },
 });
 
 export default CustomerSection;

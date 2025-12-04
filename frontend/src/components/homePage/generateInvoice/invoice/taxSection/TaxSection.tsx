@@ -7,6 +7,7 @@ import {
   FlatList,
   StyleSheet,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -23,7 +24,7 @@ interface TaxSectionProps {
   setTaxLineItems: React.Dispatch<React.SetStateAction<Tax[]>>;
   productsTotal: number;
   onTaxChange?: (data: { taxLineItems: Tax[]; totalTax: number }) => void;
-  grandTotal?: number; // ✅ new
+  grandTotal?: number;
 }
 
 const TaxSection: React.FC<TaxSectionProps> = ({
@@ -33,42 +34,66 @@ const TaxSection: React.FC<TaxSectionProps> = ({
   onTaxChange,
   grandTotal,
 }) => {
-  const addTax = () => {
-    setTaxLineItems([...taxLineItems, { name: '', value: '', type: '%' }]);
+  const initialTaxState: Tax = { name: '', value: '', type: '%' };
+  const [currentTax, setCurrentTax] = React.useState<Tax>(initialTaxState);
+  const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
+
+  const updateCurrentTax = <K extends keyof Tax>(field: K, value: Tax[K]) => {
+    setCurrentTax({ ...currentTax, [field]: value });
   };
 
-  const updateTax = <K extends keyof Tax>(
-    index: number,
-    field: K,
-    value: Tax[K],
-  ) => {
-    // Clone to avoid shared references
-    const updated = taxLineItems.map((item, i) =>
-      i === index ? { ...item, [field]: value } : { ...item },
-    );
+  const handleAddOrUpdate = () => {
+    if (!currentTax.name.trim()) return;
 
-    // Update amount only for that specific tax row
-    const current = updated[index];
-    const val = Number(current.value) || 0;
-    const amount = current.type === '%' ? (productsTotal * val) / 100 : val;
+    let updatedList = [...taxLineItems];
+    if (editingIndex !== null) {
+      // Update existing
+      updatedList[editingIndex] = currentTax;
+      setEditingIndex(null);
+    } else {
+      // Add new
+      updatedList.push(currentTax);
+    }
 
-    // Ensure the new tax has correct amount while others stay the same
-    updated[index] = { ...current, value: String(val), type: current.type };
+    // Calculate total tax
+    const totalTax = updatedList.reduce((sum, t) => {
+      const v = Number(t.value) || 0;
+      return sum + (t.type === '%' ? (productsTotal * v) / 100 : v);
+    }, 0);
 
-    // Compute total tax for callback
+    setTaxLineItems(updatedList);
+    if (onTaxChange) onTaxChange({ taxLineItems: updatedList, totalTax });
+    
+    // Reset form
+    setCurrentTax(initialTaxState);
+  };
+
+  const handleEditItem = (item: Tax, index: number) => {
+    setCurrentTax(item);
+    setEditingIndex(index);
+  };
+
+  const handleCancelEdit = () => {
+    setCurrentTax(initialTaxState);
+    setEditingIndex(null);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    const updated = taxLineItems.filter((_, i) => i !== index);
+    
     const totalTax = updated.reduce((sum, t) => {
       const v = Number(t.value) || 0;
       return sum + (t.type === '%' ? (productsTotal * v) / 100 : v);
     }, 0);
 
-    // Update state and notify parent
     setTaxLineItems(updated);
     if (onTaxChange) onTaxChange({ taxLineItems: updated, totalTax });
-  };
 
-  const removeTax = (index: number) => {
-    const updated = taxLineItems.filter((_, i) => i !== index);
-    setTaxLineItems(updated);
+    if (editingIndex === index) {
+      handleCancelEdit();
+    } else if (editingIndex !== null && editingIndex > index) {
+      setEditingIndex(editingIndex - 1);
+    }
   };
 
   const totalTax = taxLineItems.reduce((sum, t) => {
@@ -76,29 +101,19 @@ const TaxSection: React.FC<TaxSectionProps> = ({
     return sum + (t.type === '%' ? (productsTotal * val) / 100 : val);
   }, 0);
 
-  const renderTax = ({ item, index }: { item: Tax; index: number }) => (
+  const renderInputForm = () => (
     <View style={styles.cardContainer}>
       <View style={styles.card}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Tax {index + 1}</Text>
-
-          {taxLineItems.length > 1 && (
-            <TouchableOpacity
-              onPress={() => removeTax(index)}
-              style={styles.removeBtn}
-            >
-              <Text style={styles.removeText}>Remove</Text>
+          <Text style={styles.title}>{editingIndex !== null ? 'Edit Tax' : 'Add Tax'}</Text>
+          {editingIndex !== null && (
+            <TouchableOpacity onPress={handleCancelEdit} style={styles.removeBtn}>
+              <Text style={styles.removeText}>Cancel</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <View
-          style={{
-            borderBottomWidth: 1,
-            borderBottomColor: '#cbd5e1',
-            marginVertical: 10,
-          }}
-        />
+        <View style={{ borderBottomWidth: 1, borderBottomColor: '#cbd5e1', marginVertical: 10 }} />
 
         {/* Tax Name */}
         <View style={styles.inputBox}>
@@ -106,8 +121,9 @@ const TaxSection: React.FC<TaxSectionProps> = ({
           <TextInput
             style={styles.input}
             placeholder="e.g. GST, VAT"
-            value={item.name}
-            onChangeText={t => updateTax(index, 'name', t)}
+            placeholderTextColor="#94a3b8"
+            value={currentTax.name}
+            onChangeText={t => updateCurrentTax('name', t)}
           />
         </View>
 
@@ -118,285 +134,343 @@ const TaxSection: React.FC<TaxSectionProps> = ({
             style={styles.input}
             keyboardType="numeric"
             placeholder="0"
-            value={item.value}
-            onChangeText={t => updateTax(index, 'value', t)}
+            placeholderTextColor="#94a3b8"
+            value={currentTax.value}
+            onChangeText={t => updateCurrentTax('value', t)}
           />
 
           {/* Toggle Button Row */}
           <View style={styles.toggleRow}>
             <TouchableOpacity
-              onPress={() => updateTax(index, 'type', '%')}
-              style={[
-                styles.toggleBtn,
-                item.type === '%' && styles.toggleSelected,
-              ]}
+              onPress={() => updateCurrentTax('type', '%')}
+              style={[styles.toggleBtn, currentTax.type === '%' && styles.toggleSelected]}
             >
-              <Text
-                style={
-                  item.type === '%'
-                    ? styles.selectedText
-                    : styles.unselectedText
-                }
-              >
-                %
-              </Text>
+              <Text style={currentTax.type === '%' ? styles.selectedText : styles.unselectedText}>%</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => updateTax(index, 'type', '₹')}
-              style={[
-                styles.toggleBtn,
-                item.type === '₹' && styles.toggleSelected,
-              ]}
+              onPress={() => updateCurrentTax('type', '₹')}
+              style={[styles.toggleBtn, currentTax.type === '₹' && styles.toggleSelected]}
             >
-              <Text
-                style={
-                  item.type === '₹'
-                    ? styles.selectedText
-                    : styles.unselectedText
-                }
-              >
-                ₹
-              </Text>
+              <Text style={currentTax.type === '₹' ? styles.selectedText : styles.unselectedText}>₹</Text>
             </TouchableOpacity>
           </View>
-          {/* ✅ Individual Tax Amount */}
-          <View style={styles.taxAmountBox}>
-            <Text style={styles.taxAmountLabel}>Calculated:</Text>
-            <Text style={styles.taxAmountValue}>
-              ₹
-              {(item.type === '%'
-                ? (productsTotal * (Number(item.value) || 0)) / 100
-                : Number(item.value) || 0
-              ).toFixed(2)}
-            </Text>
-          </View>
         </View>
+
+        {/* Calculated Amount */}
+        <Text style={styles.totalText}>
+          Amount: ₹
+          {(currentTax.type === '%'
+            ? (productsTotal * (Number(currentTax.value) || 0)) / 100
+            : Number(currentTax.value) || 0
+          ).toFixed(2)}
+        </Text>
+        
+        {/* Add/Update Button */}
+        <TouchableOpacity style={styles.addBtn} onPress={handleAddOrUpdate}>
+          <Text style={styles.addText}>{editingIndex !== null ? 'Update Tax' : 'Add Tax'}</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 
+  const renderTaxRow = ({ item, index }: { item: Tax; index: number }) => (
+    <TouchableOpacity onPress={() => handleEditItem(item, index)} style={styles.tableRow}>
+      <Text style={[styles.tableCell, styles.tableCellIndex]}>{index + 1}</Text>
+      <Text style={[styles.tableCell, styles.tableCellName]} numberOfLines={1}>{item.name}</Text>
+      <Text style={[styles.tableCell, styles.tableCellValue]}>
+        {item.value}{item.type}
+      </Text>
+      <Text style={[styles.tableCell, styles.tableCellAmount]}>
+        ₹{(item.type === '%'
+          ? (productsTotal * (Number(item.value) || 0)) / 100
+          : Number(item.value) || 0
+        ).toFixed(2)}
+      </Text>
+      <TouchableOpacity onPress={() => handleRemoveItem(index)} style={[styles.tableCellAction, { padding: 5 }]}>
+        <Text style={{ color: '#ef4444', fontSize: 12 }}>✕</Text>
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={{ flex: 1 }}>
-      <Text style={styles.header}>Add Tax</Text>
-
-      <View style={styles.productsContainer}>
-        <FlatList
-          data={taxLineItems}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          renderItem={renderTax}
-          keyExtractor={(_, index) => index.toString()}
-          snapToInterval={width}
-          decelerationRate="fast"
-        />
-      </View>
-
-      <TouchableOpacity style={styles.addBtn} onPress={addTax}>
-        <Text style={styles.addText}>+ Add Another Tax</Text>
-      </TouchableOpacity>
+      <Text style={styles.header}>Tax Details</Text>
+      
+      {/* Tax Summary Table */}
+      {taxLineItems.length > 0 && (
+        <View style={styles.tableContainer}>
+          <Text style={styles.tableTitle}>Taxes Added ({taxLineItems.length})</Text>
+          <Text style={{ fontSize: 12, color: '#64748b', paddingHorizontal: 12, paddingBottom: 8 }}>
+            Tap a row to edit
+          </Text>
+          
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderCell, styles.tableCellIndex]}>#</Text>
+            <Text style={[styles.tableHeaderCell, styles.tableCellName]}>Name</Text>
+            <Text style={[styles.tableHeaderCell, styles.tableCellValue]}>Value</Text>
+            <Text style={[styles.tableHeaderCell, styles.tableCellAmount]}>Amount</Text>
+            <Text style={[styles.tableHeaderCell, styles.tableCellAction]}></Text>
+          </View>
+          
+          <ScrollView style={styles.tableBody} nestedScrollEnabled>
+            <FlatList
+              data={taxLineItems}
+              renderItem={renderTaxRow}
+              keyExtractor={(_, index) => index.toString()}
+              scrollEnabled={false}
+            />
+          </ScrollView>
+          
+          <View style={styles.tableFooter}>
+            <Text style={styles.tableFooterLabel}>Total Tax:</Text>
+            <Text style={styles.tableFooterValue}>
+              ₹{totalTax.toFixed(2)}
+            </Text>
+          </View>
+        </View>
+      )}
+      
+      {/* Single Input Form */}
+      {renderInputForm()}
 
       {grandTotal !== undefined && (
         <View style={styles.grandBox}>
-          <View
-            style={{ flexDirection: 'row', justifyContent: 'space-between' }}
-          >
-            <Text style={styles.totalTaxLabel}>Total Tax</Text>
-            <Text style={styles.totalTaxValue}>₹{totalTax.toFixed(2)}</Text>
-          </View>
-
-          <View
-            style={{
-              borderBottomWidth: 1,
-              borderBottomColor: '#888',
-              marginVertical: scale(8),
-            }}
-          />
-
-          <View
-            style={{ flexDirection: 'row', justifyContent: 'space-between' }}
-          >
-            <Text style={styles.grandLabel}>Total After Tax</Text>
-            <Text style={styles.grandValue}>₹{grandTotal.toFixed(2)}</Text>
-          </View>
+          <Text style={styles.grandLabel}>Total After Tax:</Text>
+          <Text style={styles.grandValue}>₹{grandTotal.toFixed(2)}</Text>
         </View>
       )}
     </View>
   );
 };
 
-//
-// ✅ STYLES (identical to ProductSection theme)
-//
 const styles = StyleSheet.create({
   header: {
-    fontSize: scale(20),
+    fontSize: scale(18),
     fontWeight: '700',
-    marginLeft: scale(16),
-    marginBottom: scale(12),
+    marginLeft: scale(12),
+    marginBottom: scale(8),
     color: '#1e293b',
   },
-  productsContainer: { height: height * 0.5, marginBottom: scale(8) },
-  cardContainer: { width, paddingHorizontal: scale(12) },
+  productsContainer: { flex: 1, marginBottom: scale(6) },
+  cardContainer: { paddingHorizontal: scale(8), marginBottom: scale(8) },
   card: {
-    backgroundColor: '#f8fafc',
-    padding: scale(16),
-    borderRadius: scale(12),
+    backgroundColor: '#ffffff',
+    padding: scale(12),
+    borderRadius: scale(10),
     flex: 1,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   title: {
-    fontSize: scale(18),
+    fontSize: scale(16),
     fontWeight: '600',
-    marginBottom: scale(12),
+    marginBottom: scale(8),
     color: '#1e293b',
   },
-  inputBox: { marginBottom: scale(12), position: 'relative' },
+  inputBox: { marginBottom: scale(8), position: 'relative' },
   label: {
-    fontSize: scale(14),
+    fontSize: scale(13),
     fontWeight: '500',
     color: '#334155',
-    marginBottom: scale(6),
+    marginBottom: scale(4),
   },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    borderRadius: scale(8),
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(10),
-    fontSize: scale(15),
+    borderRadius: scale(6),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(8),
+    fontSize: scale(14),
     color: '#000',
     width: '90%',
   },
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    gap: scale(12),
-    marginTop: scale(10),
+    gap: scale(8),
+    marginTop: scale(8),
   },
   toggleBtn: {
     borderWidth: 1,
     borderColor: '#888',
-    borderRadius: scale(8),
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(10),
+    borderRadius: scale(6),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
     backgroundColor: 'transparent',
   },
   toggleSelected: {
     backgroundColor: 'rgba(0,0,0,0.1)',
   },
-  selectedText: { color: '#000', fontWeight: '600' },
-  unselectedText: { color: '#000', fontWeight: '500' },
+  selectedText: { color: '#000', fontWeight: '600', fontSize: scale(13) },
+  unselectedText: { color: '#000', fontWeight: '500', fontSize: scale(13) },
+  totalText: {
+    textAlign: 'right',
+    marginTop: scale(8),
+    fontWeight: '700',
+    fontSize: scale(15),
+    color: '#000',
+    marginRight: scale(10),
+  },
   titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: scale(12),
+    marginBottom: scale(8),
   },
   removeBtn: {
     borderWidth: 1,
     borderColor: '#dc2626',
     backgroundColor: 'rgba(220, 38, 38, 0.1)',
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(6),
-    borderRadius: scale(8),
-    marginRight: scale(20),
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    borderRadius: scale(6),
+    marginRight: scale(10),
   },
   removeText: {
     color: '#dc2626',
-    fontSize: scale(13),
+    fontSize: scale(12),
     fontWeight: '600',
   },
 
   addBtn: {
     alignSelf: 'center',
-    backgroundColor: 'transparent',
-    paddingHorizontal: scale(24),
-    paddingVertical: scale(12),
-    borderRadius: scale(10),
-    marginBottom: scale(12),
-    borderWidth: 1,
-    borderColor: '#888',
-  },
-  addText: { color: '#000', fontWeight: '600', fontSize: scale(15) },
-  grandBox: {
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    padding: scale(16),
-    borderRadius: scale(10),
-    marginHorizontal: scale(16),
-    marginBottom: scale(20),
-    borderWidth: 1,
-    borderColor: '#888',
-  },
-  totalTaxLabel: {
-    fontSize: scale(15),
-    fontWeight: '500',
-    color: '#475569',
-  },
-  totalTaxValue: {
-    fontSize: scale(16),
-    fontWeight: '600',
-    color: '#475569',
-  },
-  grandLabel: {
-    fontSize: scale(16),
-    fontWeight: '700',
-    color: '#000',
-  },
-  grandValue: {
-    fontSize: scale(20),
-    fontWeight: '800',
-    color: '#000',
-  },
-
-  taxAmountBox: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
     marginTop: scale(12),
-    paddingTop: scale(8),
-    borderTopWidth: 1,
-    borderTopColor: '#cbd5e1',
-    marginRight: scale(30),
+    marginBottom: scale(8),
+    borderWidth: 0,
+    elevation: 3,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
-  taxAmountLabel: {
+  addText: { 
+    color: '#fff', 
+    fontWeight: '700', 
     fontSize: scale(14),
-    color: '#475569',
-    marginRight: scale(6),
-    fontWeight: '500',
   },
-  taxAmountValue: {
-    fontSize: scale(16),
-    fontWeight: '700',
-    color: '#1e293b',
-  },
-
-  totalBox: {
+  grandBox: {
+    backgroundColor: '#1e293b',
+    padding: scale(12),
+    borderRadius: scale(10),
+    marginHorizontal: scale(12),
+    marginBottom: scale(16),
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    marginHorizontal: scale(16),
-    marginTop: scale(12),
-    marginBottom: scale(16),
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(12),
+    borderWidth: 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  grandLabel: { 
+    fontSize: scale(16), 
+    fontWeight: '700', 
+    color: '#fff',
+  },
+  grandValue: { 
+    fontSize: scale(18), 
+    fontWeight: '800', 
+    color: '#3b82f6',
+  },
+
+  // Table Styles
+  tableContainer: {
+    backgroundColor: '#fff',
+    marginHorizontal: scale(8),
+    marginBottom: scale(12),
     borderRadius: scale(10),
     borderWidth: 1,
     borderColor: '#cbd5e1',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    overflow: 'hidden',
+    elevation: 2,
   },
-  totalLabel: {
-    fontSize: scale(16),
-    fontWeight: '600',
+  tableTitle: {
+    fontSize: scale(14),
+    fontWeight: '700',
     color: '#1e293b',
+    padding: scale(10),
+    backgroundColor: '#f1f5f9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#cbd5e1',
   },
-  totalValue: {
-    fontSize: scale(18),
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#e2e8f0',
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(6),
+    borderBottomWidth: 2,
+    borderBottomColor: '#cbd5e1',
+  },
+  tableHeaderCell: {
+    fontSize: scale(11),
+    fontWeight: '700',
+    color: '#334155',
+    textAlign: 'center',
+  },
+  tableBody: {
+    maxHeight: scale(150),
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(6),
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#fff',
+  },
+  tableCell: {
+    fontSize: scale(11),
+    color: '#1e293b',
+    textAlign: 'center',
+  },
+  tableCellIndex: {
+    width: '8%',
+  },
+  tableCellName: {
+    width: '35%',
+    textAlign: 'left',
+    paddingLeft: scale(4),
+  },
+  tableCellValue: {
+    width: '17%',
+  },
+  tableCellAmount: {
+    width: '25%',
+    fontWeight: '600',
+  },
+  tableCellAction: {
+    width: '15%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tableFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(10),
+    backgroundColor: '#f8fafc',
+    borderTopWidth: 2,
+    borderTopColor: '#cbd5e1',
+  },
+  tableFooterLabel: {
+    fontSize: scale(13),
+    fontWeight: '700',
+    color: '#334155',
+  },
+  tableFooterValue: {
+    fontSize: scale(14),
     fontWeight: '700',
     color: '#1e293b',
   },

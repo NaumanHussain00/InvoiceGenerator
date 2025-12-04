@@ -11,7 +11,7 @@ import { Platform } from 'react-native';
 
 // Primary API base URL - for Android emulator, use 10.0.2.2 instead of localhost
 export const API_BASE_URL = Platform.select({
-  android: 'https://mkqfdpqq-3000.inc1.devtunnels.ms',
+  android: 'http://10.140.166.122:3000',
   ios: 'http://localhost:3000',
   default: 'http://localhost:3000',
 });
@@ -20,8 +20,8 @@ export const API_BASE_URL = Platform.select({
 export const API_FALLBACK_URLS = [
   'http://10.0.2.2:3000', // Android emulator to host
   'http://localhost:3000', // iOS simulator or web
-  'http://10.73.173.122:3000', // Your machine's network IP (for physical devices)
-  'https://mkqfdpqq-3000.inc1.devtunnels.ms', // Tunnel/remote (if configured)
+  'http://10.140.166.122:3000', // Your machine's network IP (for physical devices)
+  'https://mkqfdpqq-3000.inc1.devtunnels.ms', // Tunnel/remote (if configured - UPDATE THIS URL)
 ];
 
 /**

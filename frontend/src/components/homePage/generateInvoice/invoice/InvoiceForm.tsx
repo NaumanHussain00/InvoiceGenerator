@@ -9,7 +9,7 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import axios from 'axios';
+import apiClient from '../../../../config/apiClient';
 import { API_BASE_URL } from '../../../../config/api';
 import CustomerSection from './customerSection/CustomerSection';
 import ProductSection from './productSection/ProductSection';
@@ -62,27 +62,11 @@ const InvoiceForm: React.FC = () => {
     balance: '',
   });
 
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: '',
-      name: '',
-      price: '',
-      quantity: '',
-      discount: '',
-      discountType: '%',
-      total: 0,
-    },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
 
-  const [packingCharges, setPackingCharges] = useState<PackingItem[]>([
-    { name: '', amount: '' },
-  ]);
-  const [transportOptions, setTransportOptions] = useState<TransportOption[]>([
-    { name: '', cost: '' },
-  ]);
-  const [taxes, setTaxes] = useState<Tax[]>([
-    { name: '', value: '', type: '%' },
-  ]);
+  const [packingCharges, setPackingCharges] = useState<PackingItem[]>([]);
+  const [transportOptions, setTransportOptions] = useState<TransportOption[]>([]);
+  const [taxes, setTaxes] = useState<Tax[]>([]);
   const [amountDiscount, setAmountDiscount] = useState<number>(0);
   const [percentDiscount, setPercentDiscount] = useState<number>(0);
   const [amountPaid, setAmountPaid] = useState<string>('');
@@ -136,6 +120,35 @@ const InvoiceForm: React.FC = () => {
     console.log('Customer selected:', id);
   };
 
+  // Test backend connectivity
+  const handleTestConnection = async () => {
+    try {
+      console.log('Testing connection to:', API_BASE_URL);
+      
+      // Use the enhanced testConnection function
+      const { testConnection } = await import('../../../../config/apiClient');
+      const result = await testConnection();
+      
+      if (result.success) {
+        Alert.alert(
+          '✅ Connection Successful',
+          `Backend is reachable!\n\nWorking URL: ${result.url}\n\nYou can now save invoices.`,
+        );
+      } else {
+        Alert.alert(
+          '❌ Connection Failed',
+          `Cannot reach backend server.\n\n${result.error}\n\nTroubleshooting:\n1. Ensure backend is running: npm run dev\n2. For Android emulator, try: adb reverse tcp:3000 tcp:3000\n3. Check Windows Firewall allows port 3000\n4. Verify backend is listening on 0.0.0.0:3000`,
+        );
+      }
+    } catch (err: any) {
+      console.error('Connection test failed:', err);
+      Alert.alert(
+        '❌ Test Error',
+        `Failed to test connection:\n${err.message}`,
+      );
+    }
+  };
+
   const handleDownloadInvoice = async () => {
     if (!invoiceData.invoiceId) {
       Alert.alert('Error', 'Please save the invoice first.');
@@ -143,8 +156,12 @@ const InvoiceForm: React.FC = () => {
     }
 
     try {
-      const res = await axios.get(
+      console.log(
+        'Fetching invoice HTML from:',
         `${API_BASE_URL}/invoices/invoice/generate/${invoiceData.invoiceId}`,
+      );
+      const res = await apiClient.get(
+        `/invoices/invoice/generate/${invoiceData.invoiceId}`,
       );
 
       const html = res.data;
@@ -155,9 +172,16 @@ const InvoiceForm: React.FC = () => {
 
       // ✅ just show the HTML in WebView
       setHtmlContent(html);
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Failed to load invoice HTML.');
+    } catch (err: any) {
+      console.error('Download Invoice Error:', err);
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to load invoice HTML';
+      Alert.alert(
+        'Error',
+        `${errorMsg}\n\nMake sure backend is running at ${API_BASE_URL}`,
+      );
     }
   };
 
@@ -168,6 +192,19 @@ const InvoiceForm: React.FC = () => {
       return;
     }
 
+    // Filter out empty products (those without a valid productId or name)
+    const validProducts = products.filter(p => p.id && p.name.trim() !== '');
+    
+    if (validProducts.length === 0) {
+      Alert.alert('Error', 'Please add at least one product to the invoice.');
+      return;
+    }
+
+    // Filter out empty taxes, packaging, and transport items
+    const validTaxes = taxes.filter(t => t.name.trim() !== '');
+    const validPackaging = packingCharges.filter(p => p.name.trim() !== '');
+    const validTransport = transportOptions.filter(t => t.name.trim() !== '');
+
     const payload = {
       customerId: customerData.id,
       totalAmount: productsTotal,
@@ -175,45 +212,70 @@ const InvoiceForm: React.FC = () => {
       percentDiscount,
       finalAmount: grandTotal,
       paidByCustomer: Number(amountPaid || 0),
-      invoiceLineItems: products.map(p => ({
-        productId: Number(p.id) || null,
+      invoiceLineItems: validProducts.map(p => ({
+        productId: Number(p.id),
         productQuantity: Number(p.quantity || 0),
         productAmountDiscount:
           p.discountType === '₹' ? Number(p.discount || 0) : 0,
         productPercentDiscount:
           p.discountType === '%' ? Number(p.discount || 0) : 0,
       })),
-      taxLineItems: taxes.map(t => ({
+      taxLineItems: validTaxes.map(t => ({
         name: t.name,
         percent: t.type === '%' ? Number(t.value || 0) : 0,
         amount: t.type === '₹' ? Number(t.value || 0) : 0,
       })),
-      packagingLineItems: packingCharges.map(p => ({
+      packagingLineItems: validPackaging.map(p => ({
         name: p.name,
         amount: Number(p.amount || 0),
       })),
-      transportationLineItems: transportOptions.map(t => ({
+      transportationLineItems: validTransport.map(t => ({
         name: t.name,
         amount: Number(t.cost || 0),
       })),
     };
 
     try {
-      const res = await axios.post(`${API_BASE_URL}/invoices`, payload);
-      const invoiceIdFromBackend = res.data?.data?.id;
+      console.log('Saving invoice to:', `${API_BASE_URL}/invoices`);
+      console.log('Payload:', JSON.stringify(payload, null, 2));
+
+      // Try with fallback support
+      const { apiRequestWithFallback } = await import('../../../../config/apiClient');
+      const data = await apiRequestWithFallback({
+        method: 'POST',
+        url: '/invoices',
+        data: payload,
+      });
+
+      const invoiceIdFromBackend = data?.data?.id;
 
       if (invoiceIdFromBackend) {
         setInvoiceData(prev => ({
           ...prev,
           invoiceId: invoiceIdFromBackend, // store numeric invoice id
         }));
-        Alert.alert('Success', `Invoice saved. ID: ${invoiceIdFromBackend}`);
+        Alert.alert('Success', `Invoice saved successfully!\n\nInvoice ID: ${invoiceIdFromBackend}`);
         console.log('Saved Invoice ID:', invoiceIdFromBackend);
       } else {
         Alert.alert('Error', 'Invoice ID not found in response.');
       }
     } catch (err: any) {
-      Alert.alert('Error', 'Failed to save invoice.');
+      console.error('Save Invoice Error:', err);
+      const errorMsg =
+        err.response?.data?.message || err.message || 'Failed to save invoice';
+      
+      // Provide more helpful error messages
+      let troubleshootingTips = '';
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        troubleshootingTips = '\n\nThe request timed out. Backend may be slow or unreachable.';
+      } else if (err.code === 'ERR_NETWORK' || !err.response) {
+        troubleshootingTips = '\n\nNetwork error - cannot reach backend.\n\nQuick fix for Android emulator:\n1. Open a terminal\n2. Run: adb reverse tcp:3000 tcp:3000\n3. Try saving again';
+      }
+      
+      Alert.alert(
+        'Save Failed',
+        `${errorMsg}${troubleshootingTips}\n\nBackend URL: ${API_BASE_URL}\n\nTip: Use "Test Backend Connection" button to diagnose the issue.`,
+      );
     }
   };
 
@@ -232,19 +294,23 @@ const InvoiceForm: React.FC = () => {
             style={styles.wrapper}
             contentContainerStyle={styles.contentContainer}
           >
-            <CustomerSection
-              customerData={customerData}
-              setCustomerData={setCustomerData}
-              resetTrigger={false}
-              onSelectCustomerId={handleSelectCustomerId}
-            />
+            <View style={{ zIndex: 2000 }}>
+              <CustomerSection
+                customerData={customerData}
+                setCustomerData={setCustomerData}
+                resetTrigger={false}
+                onSelectCustomerId={handleSelectCustomerId}
+              />
+            </View>
             <Divider />
 
-            <ProductSection
-              products={products}
-              setProducts={setProducts}
-              onLineItemsChange={() => {}}
-            />
+            <View style={{ zIndex: 1000 }}>
+              <ProductSection
+                products={products}
+                setProducts={setProducts}
+                onLineItemsChange={() => {}}
+              />
+            </View>
             <Divider />
 
             <DiscountSection
@@ -325,6 +391,15 @@ const InvoiceForm: React.FC = () => {
               </TouchableOpacity>
             </View>
 
+            <TouchableOpacity
+              style={[styles.testButton]}
+              onPress={handleTestConnection}
+            >
+              <Text style={styles.testButtonText}>
+                🔌 Test Backend Connection
+              </Text>
+            </TouchableOpacity>
+
             <View style={{ height: 50 }} />
           </ScrollView>
         </>
@@ -335,46 +410,59 @@ const InvoiceForm: React.FC = () => {
 
 const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: '#f5f7fa' },
-  contentContainer: { padding: scale(20), paddingBottom: scale(50) },
+  contentContainer: { padding: scale(12), paddingBottom: scale(40) },
   header: {
     backgroundColor: '#4A90E2',
-    padding: scale(30),
-    borderRadius: scale(15),
-    marginBottom: scale(25),
+    padding: scale(20),
+    borderRadius: scale(12),
+    marginBottom: scale(16),
     elevation: 5,
   },
   headerTitle: {
-    fontSize: scale(28),
+    fontSize: scale(24),
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: scale(10),
+    marginBottom: scale(8),
     textAlign: 'center',
   },
   headerSubtitle: {
-    fontSize: scale(14),
+    fontSize: scale(13),
     color: '#E8F4FF',
     textAlign: 'center',
   },
   divider: {
-    height: scale(2),
-    backgroundColor: '#555',
-    marginVertical: scale(15),
+    height: scale(1),
+    backgroundColor: '#cbd5e1',
+    marginVertical: scale(8),
     borderRadius: scale(1),
   },
 
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 12,
   },
   button: {
     flex: 1,
     marginHorizontal: 5,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  buttonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  testButton: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#FF9800',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  testButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
+  },
 });
 
 export default InvoiceForm;

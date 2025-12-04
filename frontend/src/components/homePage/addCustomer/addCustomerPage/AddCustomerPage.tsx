@@ -88,20 +88,26 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
         address: customerData.address.trim(),
       };
 
-      console.log('Sending data:', payload);
+      console.log('[AddCustomer] Sending data:', payload);
 
       const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
+      console.log('[AddCustomer] Will try URLs:', candidates);
       let lastError: any = null;
       let success = false;
 
       for (const baseUrl of candidates) {
         try {
+          console.log(`[AddCustomer] Trying ${baseUrl}/customers`);
+          
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
           const response = await fetch(`${baseUrl}/customers`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
             body: JSON.stringify(payload),
             signal: controller.signal,
           });
@@ -109,8 +115,8 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
           clearTimeout(timeoutId);
 
           const text = await response.text();
-          console.log('Response status:', response.status);
-          console.log('Response body:', text);
+          console.log(`[AddCustomer] Response from ${baseUrl} - Status:`, response.status);
+          console.log('[AddCustomer] Response body:', text.substring(0, 200));
 
           if (response.status === 201) {
             Alert.alert('Success', 'Customer saved successfully!');
@@ -125,7 +131,7 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
             success = true;
             break;
           } else {
-            const errorData = JSON.parse(text);
+            const errorData = text ? JSON.parse(text) : { message: 'Unknown error' };
             Alert.alert(
               'Error',
               errorData.message || 'Failed to save customer',
@@ -134,14 +140,22 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
           }
         } catch (err: any) {
           lastError = err;
-          console.warn(`Failed to save customer on ${baseUrl}:`, err?.message);
+          console.warn(`[AddCustomer] Failed on ${baseUrl}:`, err?.message || err);
           continue;
         }
       }
 
       if (!success && lastError) {
-        console.error('Network error:', lastError);
-        Alert.alert('Error', 'Failed to connect to server');
+        console.error('[AddCustomer] All endpoints failed. Last error:', lastError);
+        Alert.alert(
+          'Connection Error', 
+          'Cannot connect to server. Please check:\n\n' +
+          '• Backend is running (npm run dev)\n' +
+          '• Android Emulator: Use 10.0.2.2:3000\n' +
+          '• iOS Simulator: Use localhost:3000\n' +
+          '• Physical device: Use computer IP\n\n' +
+          `Details: ${lastError.message}`
+        );
       }
     } catch (error: any) {
       console.error('Save error:', error.message);
