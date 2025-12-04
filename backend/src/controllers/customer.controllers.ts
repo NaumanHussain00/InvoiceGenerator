@@ -28,14 +28,33 @@ export const createCustomer = async (req: Request, res: Response) => {
     const response = new ResponseEntity(null, "Name is Required", 400);
     return res.status(400).json(response);
   }
-  if (!firm || typeof firm !== "string" || !firm.trim()) {
-    const response = new ResponseEntity(null, "Firm is Required", 400);
+  if (name.trim().length > 50) {
+    const response = new ResponseEntity(null, "Name cannot exceed 50 characters", 400);
     return res.status(400).json(response);
   }
+
+  // Firm is optional
+  if (firm && typeof firm === "string" && firm.trim().length > 50) {
+    const response = new ResponseEntity(null, "Firm name cannot exceed 50 characters", 400);
+    return res.status(400).json(response);
+  }
+
   if (!phone || typeof phone !== "string" || !phone.trim()) {
     const response = new ResponseEntity(null, "Phone is Required", 400);
     return res.status(400).json(response);
   }
+  
+  const phoneRegex = /^[0-9]{10}$/;
+  if (!phoneRegex.test(phone.trim())) {
+     const response = new ResponseEntity(null, "Phone must be exactly 10 digits", 400);
+     return res.status(400).json(response);
+  }
+
+  if (address && typeof address === "string" && address.trim().length > 50) {
+     const response = new ResponseEntity(null, "Address cannot exceed 50 characters", 400);
+     return res.status(400).json(response);
+  }
+
   if (balance === undefined || typeof balance !== "number") {
     const response = new ResponseEntity(null, "Balance is Required", 400);
     return res.status(400).json(response);
@@ -62,9 +81,9 @@ export const createCustomer = async (req: Request, res: Response) => {
     const customer = await prisma.customer.create({
       data: {
         name: name.trim(),
-        firm: firm.trim(),
+        firm: firm ? firm.trim() : null,
         phone: phone.trim(),
-        address: address ? address.trim() : "",
+        address: address ? address.trim() : null,
         balance,
       },
     });

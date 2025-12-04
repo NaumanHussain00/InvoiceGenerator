@@ -49,6 +49,11 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
       Alert.alert('Validation Error', 'Please enter customer name.');
       return false;
     }
+    if (name.trim().length > 50) {
+      Alert.alert('Validation Error', 'Customer name cannot exceed 50 characters.');
+      return false;
+    }
+
     if (!phone.trim()) {
       Alert.alert('Validation Error', 'Please enter phone number.');
       return false;
@@ -63,8 +68,9 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
       return false;
     }
 
-    if (!firm.trim()) {
-      Alert.alert('Validation Error', 'Please enter firm name.');
+    // Firm is optional, but if provided, must be <= 50 chars
+    if (firm.trim().length > 50) {
+      Alert.alert('Validation Error', 'Firm name cannot exceed 50 characters.');
       return false;
     }
 
@@ -168,7 +174,12 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
       <Text style={styles.header}>Add Customer</Text>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Name *</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Name *</Text>
+          <Text style={styles.charCount}>
+            {50 - (customerData.name?.length || 0)} chars left
+          </Text>
+        </View>
         <TextInput
           style={styles.input}
           value={customerData?.name || ''}
@@ -176,11 +187,17 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
             setCustomerData(prev => ({ ...prev, name: text }))
           }
           placeholder="John Doe"
+          maxLength={50}
         />
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Phone *</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Phone *</Text>
+          <Text style={styles.charCount}>
+            {10 - (customerData.phone?.length || 0)} digits left
+          </Text>
+        </View>
         <TextInput
           style={styles.input}
           value={customerData?.phone || ''}
@@ -194,7 +211,12 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Firm *</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Firm (optional)</Text>
+          <Text style={styles.charCount}>
+            {50 - (customerData.firm?.length || 0)} chars left
+          </Text>
+        </View>
         <TextInput
           style={styles.input}
           value={customerData?.firm || ''}
@@ -202,11 +224,17 @@ const AddCustomerPage: React.FC<AddCustomerPageProps> = ({
             setCustomerData(prev => ({ ...prev, firm: text }))
           }
           placeholder="Acme Corp"
+          maxLength={50}
         />
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Address</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Address</Text>
+          <Text style={styles.charCount}>
+            {50 - (customerData.address?.length || 0)} chars left
+          </Text>
+        </View>
         <TextInput
           style={styles.input}
           value={customerData?.address || ''}
@@ -252,6 +280,16 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: spacing.base,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  charCount: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
   },
   label: {
     fontSize: typography.fontSize.sm,

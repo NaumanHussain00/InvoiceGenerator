@@ -1,0 +1,157 @@
+// ----------------------------------------------------------
+// Prisma Schema for Invoice Management System
+// ----------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------
+
+enum InvoiceStatus {
+  ACTIVE
+  VOID
+}
+
+enum CreditStatus {
+  ACTIVE
+  VOID
+}
+
+// ----------------------------------------------------------
+// MODELS
+// ----------------------------------------------------------
+
+model Customer {
+  id        Int       @id @default(autoincrement())
+  name      String
+  phone     String    @unique
+  firm      String?   @unique
+  address   String?
+  balance   Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  credits  Credit[]
+  invoices Invoice[]
+}
+
+model Product {
+  id        Int       @id @default(autoincrement())
+  name      String
+  price     Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  invoiceLineItems InvoiceLineItem[]
+}
+
+model Credit {
+  id         Int      @id @default(autoincrement())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  previousBalance      Float
+  amountPaidByCustomer Float
+  finalBalance         Float
+
+  status CreditStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Invoice {
+  id         Int      @id @default(autoincrement())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  totalAmount     Float
+  amountDiscount  Float?
+  percentDiscount Float?
+  // percentTax      Float?
+  // packaging       Float?
+  // transportation  Float?
+  finalAmount     Float
+
+  custPrevBalance  Float
+  paidByCustomer   Float
+  remainingBalance Float
+  numberOfCartons Int?
+
+  status InvoiceStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  invoiceLineItems        InvoiceLineItem[]
+  taxLineItems            TaxLineItem[]
+  packagingLineItems      PackagingLineItem[]
+  transportationLineItems TransportationLineItem[]
+}
+
+// ----------------------------------------------------------
+// LINE ITEM MODELS
+// ----------------------------------------------------------
+
+model InvoiceLineItem {
+  id Int @id @default(autoincrement())
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  productQuantity        Int
+  productAmountDiscount  Float?
+  productPercentDiscount Float?
+}
+
+model TaxLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  percent   Float
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model PackagingLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model TransportationLineItem {
+  id        Int     @id @default(autoincrement())
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+
+  name      String
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Sample {
+  id        Int      @id @default(autoincrement())
+  name      String
+  value     String
+  createdAt DateTime @default(now())
+}
