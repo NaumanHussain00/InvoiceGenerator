@@ -22,6 +22,7 @@ interface PackingSectionProps {
   packingCharges: PackingItem[];
   setPackingCharges: React.Dispatch<React.SetStateAction<PackingItem[]>>;
   previousTotal?: number;
+  numberOfCartons?: string;
   onPackingChange?: (data: {
     packagingLineItems: any[];
     totalAmt: number;
@@ -32,6 +33,7 @@ const PackingSection: React.FC<PackingSectionProps> = ({
   packingCharges,
   setPackingCharges,
   previousTotal = 0,
+  numberOfCartons,
   onPackingChange,
 }) => {
   const initialPackingState: PackingItem = { name: '', amount: '' };
@@ -90,14 +92,20 @@ const PackingSection: React.FC<PackingSectionProps> = ({
       name: p.name,
       amount: Number(p.amount || 0),
     }));
+    // Note: The parent component handles the multiplication by cartons for the final total.
+    // Here we return the base total.
     const totalAmt = list.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     onPackingChange({ packagingLineItems, totalAmt });
   };
 
+  const cartonCount = numberOfCartons ? Number(numberOfCartons) : 0;
+  const multiplier = cartonCount > 0 ? cartonCount : 1;
+
   const packingTotal = packingCharges.reduce(
     (sum, p) => sum + Number(p.amount || 0),
     0,
-  );
+  ) * multiplier;
+  
   const afterPackingTotal = previousTotal + packingTotal;
 
   const renderInputForm = () => (
@@ -191,7 +199,7 @@ const PackingSection: React.FC<PackingSectionProps> = ({
           </ScrollView>
           
           <View style={styles.tableFooter}>
-            <Text style={styles.tableFooterLabel}>Total Packaging:</Text>
+            <Text style={styles.tableFooterLabel}>Total Packaging{multiplier > 1 ? ` (${multiplier} Cartons)` : ''}:</Text>
             <Text style={styles.tableFooterValue}>
               ₹{packingTotal.toFixed(2)}
             </Text>

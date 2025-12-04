@@ -80,6 +80,7 @@ model Invoice {
   // packaging       Float?
   // transportation  Float?
   finalAmount     Float
+  numberOfCartons Int?
 
   custPrevBalance  Float
   paidByCustomer   Float

@@ -18,6 +18,7 @@ export async function addInvoice(req: Request, res: Response) {
     taxLineItems,
     packagingLineItems,
     transportationLineItems,
+    numberOfCartons,
   } = req.body;
 
   try {
@@ -48,7 +49,8 @@ export async function addInvoice(req: Request, res: Response) {
           custPrevBalance: prevBalance,
           paidByCustomer,
           remainingBalance,
-        },
+          numberOfCartons: numberOfCartons ? Number(numberOfCartons) : null,
+        } as any,
       });
 
       await tx.customer.update({
@@ -428,6 +430,7 @@ export async function updateInvoice(req: Request, res: Response) {
     taxLineItems,
     packagingLineItems,
     transportationLineItems,
+    numberOfCartons,
   } = req.body;
 
   try {
@@ -462,7 +465,8 @@ export async function updateInvoice(req: Request, res: Response) {
             invoice.custPrevBalance +
             (finalAmount ?? invoice.finalAmount) -
             (paidByCustomer ?? invoice.paidByCustomer),
-        },
+          numberOfCartons: numberOfCartons !== undefined ? Number(numberOfCartons) : (invoice as any).numberOfCartons,
+        } as any,
       });
 
       // Update customer balance
@@ -793,6 +797,7 @@ export async function generateInvoiceById(req: Request, res: Response) {
       <div class="header">
         <div>
           <div class="title">Invoice</div>
+          ${(invoice as any).numberOfCartons ? `<div style="font-size: 14px; color: #666; margin-top: 5px;"><strong>No. of Cartons:</strong> ${(invoice as any).numberOfCartons}</div>` : ''}
         </div>
         <div class="company-details">
           <strong>YOUR COMPANY</strong><br />

@@ -162,6 +162,17 @@ Response: {
 
 ---
 
+### 6. **Carton Feature** ✅ (v2.1.1)
+
+**Location:** `frontend/src/components/homePage/generateInvoice/invoice/InvoiceForm.tsx`
+
+**Features:**
+- "No. of Cartons" input field in invoice form
+- Automatically multiplies Packaging and Transport charges by carton count
+- Displays carton count on generated invoice
+
+---
+
 ## 📱 Navigation Structure
 
 ```
@@ -302,22 +313,6 @@ export const API_BASE_URL = "YOUR_API_URL_HERE";
 ## 💡 Future Enhancements
 
 1. **Invoice Edit Form**
-
-   - Full edit capability for line items
-   - Add/remove products in existing invoice
-   - Update tax, packaging, transportation
-
-2. **Tabular Product Display**
-
-   - Table view in invoice form
-   - Expandable product cards
-   - Better visualization of product list
-
-3. **Additional Features**
-   - Export ledger to PDF/Excel
-   - Backup/restore passwords
-   - Biometric authentication
-   - Invoice filtering by status
    - Customer payment history
    - Analytics dashboard
 
@@ -330,4 +325,4 @@ For issues or questions, please contact the development team or open an issue in
 ---
 
 **Last Updated:** December 04, 2025
-**Version:** 2.1.0
+**Version:** 2.1.1

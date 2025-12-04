@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import apiClient from '../../../../config/apiClient';
 import { API_BASE_URL } from '../../../../config/api';
@@ -70,8 +71,12 @@ const InvoiceForm: React.FC = () => {
   const [amountDiscount, setAmountDiscount] = useState<number>(0);
   const [percentDiscount, setPercentDiscount] = useState<number>(0);
   const [amountPaid, setAmountPaid] = useState<string>('');
+  const [numberOfCartons, setNumberOfCartons] = useState<string>('');
 
   // ---- Calculations ----
+  const cartonCount = Number(numberOfCartons) || 0;
+  const multiplier = cartonCount > 0 ? cartonCount : 1;
+
   const productsTotal = products.reduce((sum, p) => sum + (p.total || 0), 0);
   const discountValue =
     percentDiscount > 0
@@ -86,11 +91,11 @@ const InvoiceForm: React.FC = () => {
   const packingTotal = packingCharges.reduce(
     (sum, p) => sum + Number(p.amount || 0),
     0,
-  );
+  ) * multiplier;
   const transportTotal = transportOptions.reduce(
     (sum, t) => sum + Number(t.cost || 0),
     0,
-  );
+  ) * multiplier;
   const grandTotal = afterTaxTotal + packingTotal + transportTotal;
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const handleDiscountChange = (data: {
@@ -233,6 +238,7 @@ const InvoiceForm: React.FC = () => {
         name: t.name,
         amount: Number(t.cost || 0),
       })),
+      numberOfCartons: cartonCount > 0 ? cartonCount : undefined,
     };
 
     try {
@@ -313,6 +319,29 @@ const InvoiceForm: React.FC = () => {
             </View>
             <Divider />
 
+            <View>
+              <Text style={styles.sectionHeader}>Carton Details</Text>
+              <View style={styles.cardContainer}>
+                <View style={styles.card}>
+                  <View style={styles.inputBox}>
+                    <Text style={styles.label}>No. of Cartons</Text>
+                    <Text style={styles.subLabel}>
+                      (Optional - Multiplies Packing & Transport)
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="numeric"
+                      placeholder="Enter number of cartons"
+                      placeholderTextColor="#94a3b8"
+                      value={numberOfCartons}
+                      onChangeText={setNumberOfCartons}
+                    />
+                  </View>
+                </View>
+              </View>
+            </View>
+            <Divider />
+
             <DiscountSection
               previousTotal={productsTotal}
               onDiscountChange={handleDiscountChange}
@@ -339,6 +368,7 @@ const InvoiceForm: React.FC = () => {
               packingCharges={packingCharges}
               setPackingCharges={setPackingCharges}
               previousTotal={afterTaxTotal}
+              numberOfCartons={numberOfCartons}
             />
             <Divider />
 
@@ -346,6 +376,7 @@ const InvoiceForm: React.FC = () => {
               transportOptions={transportOptions}
               setTransportOptions={setTransportOptions}
               previousTotal={afterTaxTotal + packingTotal}
+              numberOfCartons={numberOfCartons}
               onTransportChange={({ transportationLineItems, totalAmt }) =>
                 console.log(
                   'Transport Data:',
@@ -463,6 +494,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
   },
+  cartonContainer: {
+    paddingHorizontal: scale(8),
+    marginBottom: scale(8),
+  },
+  label: {
+    fontSize: scale(13),
+    fontWeight: '500',
+    color: '#334155',
+    marginBottom: scale(4),
+  },
+  subLabel: {
+    fontSize: scale(11),
+    color: '#64748b',
+    marginBottom: scale(6),
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: scale(6),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(8),
+    fontSize: scale(14),
+    color: '#000',
+  },
+  sectionHeader: {
+    fontSize: scale(18),
+    fontWeight: '700',
+    marginLeft: scale(12),
+    marginBottom: scale(8),
+    color: '#1e293b',
+  },
+  cardContainer: { paddingHorizontal: scale(8), marginBottom: scale(8) },
+  card: {
+    backgroundColor: '#ffffff',
+    padding: scale(12),
+    borderRadius: scale(10),
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  inputBox: { marginBottom: scale(8) },
 });
 
 export default InvoiceForm;

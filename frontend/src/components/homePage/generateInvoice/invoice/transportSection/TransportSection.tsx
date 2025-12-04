@@ -22,6 +22,7 @@ interface TransportSectionProps {
   transportOptions: TransportOption[];
   setTransportOptions: React.Dispatch<React.SetStateAction<TransportOption[]>>;
   previousTotal?: number;
+  numberOfCartons?: string;
   onTransportChange?: (data: {
     transportationLineItems: any[];
     totalAmt: number;
@@ -32,6 +33,7 @@ const TransportSection: React.FC<TransportSectionProps> = ({
   transportOptions,
   setTransportOptions,
   previousTotal = 0,
+  numberOfCartons,
   onTransportChange,
 }) => {
   const initialTransportState: TransportOption = { name: '', cost: '' };
@@ -90,14 +92,20 @@ const TransportSection: React.FC<TransportSectionProps> = ({
       name: t.name,
       amount: Number(t.cost || 0),
     }));
+    // Note: The parent component handles the multiplication by cartons for the final total.
+    // Here we return the base total.
     const totalAmt = list.reduce((sum, t) => sum + Number(t.cost || 0), 0);
     onTransportChange({ transportationLineItems, totalAmt });
   };
 
+  const cartonCount = numberOfCartons ? Number(numberOfCartons) : 0;
+  const multiplier = cartonCount > 0 ? cartonCount : 1;
+
   const transportTotal = transportOptions.reduce(
     (sum, t) => sum + Number(t.cost || 0),
     0,
-  );
+  ) * multiplier;
+  
   const afterTransportTotal = previousTotal + transportTotal;
 
   const renderInputForm = () => (
@@ -191,7 +199,7 @@ const TransportSection: React.FC<TransportSectionProps> = ({
           </ScrollView>
           
           <View style={styles.tableFooter}>
-            <Text style={styles.tableFooterLabel}>Total Transport:</Text>
+            <Text style={styles.tableFooterLabel}>Total Transport{multiplier > 1 ? ` (${multiplier} Cartons)` : ''}:</Text>
             <Text style={styles.tableFooterValue}>
               ₹{transportTotal.toFixed(2)}
             </Text>
