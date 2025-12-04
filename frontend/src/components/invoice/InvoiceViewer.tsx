@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import axios from 'axios';
+import RNPrint from 'react-native-print';
 import { API_BASE_URL, API_FALLBACK_URLS } from '../../config/api';
 import { colors, spacing, typography } from '../../theme/theme';
 import { RouteProp } from '@react-navigation/native';
@@ -78,6 +79,16 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
     setLoading(false);
   };
 
+  const handlePrint = async () => {
+    if (!htmlContent) return;
+    try {
+      await RNPrint.print({ html: htmlContent });
+    } catch (error) {
+      console.error('Print error:', error);
+      Alert.alert('Error', 'Failed to print invoice.');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -135,7 +146,9 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Invoice #{invoiceId}</Text>
-        <View style={styles.placeholder} />
+        <TouchableOpacity onPress={handlePrint} style={styles.printButton}>
+          <Text style={styles.printButtonText}>🖨️ Print</Text>
+        </TouchableOpacity>
       </View>
       <WebView
         originWhitelist={['*']}
@@ -209,6 +222,16 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
+  },
+  printButton: {
+    padding: spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+  },
+  printButtonText: {
+    color: colors.textInverse,
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semiBold,
   },
 });
 

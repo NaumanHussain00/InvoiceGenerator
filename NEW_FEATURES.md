@@ -162,6 +162,28 @@ Response: {
 
 ---
 
+### 6. **Carton Feature** ✅ (v2.1.1)
+
+**Location:** `frontend/src/components/homePage/generateInvoice/invoice/InvoiceForm.tsx`
+
+**Features:**
+- "No. of Cartons" input field in invoice form
+- Automatically multiplies Packaging and Transport charges by carton count
+- Displays carton count on generated invoice
+
+### 7. **Print Feature** ✅ (v2.1.2)
+
+**Location:** 
+- `frontend/src/components/invoice/InvoiceViewer.tsx`
+- `frontend/src/components/credit/CreditViewer.tsx`
+
+**Features:**
+- Added "Print" button to Invoice and Credit viewers.
+- Allows direct printing of the generated HTML invoice/credit note.
+- Uses native printing capabilities (PDF generation/Printer).
+
+---
+
 ## 📱 Navigation Structure
 
 ```
@@ -330,4 +352,4 @@ For issues or questions, please contact the development team or open an issue in
 ---
 
 **Last Updated:** December 04, 2025
-**Version:** 2.1.0
+**Version:** 2.1.2
