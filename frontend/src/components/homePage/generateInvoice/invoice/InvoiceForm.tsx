@@ -218,15 +218,21 @@ const InvoiceForm: React.FC = () => {
       percentDiscount,
       finalAmount: grandTotal,
       paidByCustomer: Number(amountPaid || 0),
-      invoiceLineItems: validProducts.map(p => ({
-        productId: Number(p.id),
-        productPrice: Number(p.price || 0),
-        productQuantity: Number(p.quantity || 0),
-        productAmountDiscount:
-          p.discountType === '₹' ? Number(p.discount || 0) : 0,
-        productPercentDiscount:
-          p.discountType === '%' ? Number(p.discount || 0) : 0,
-      })),
+      invoiceLineItems: validProducts.map(p => {
+        const parsedId = Number(p.id);
+        const isAdHoc = isNaN(parsedId) || p.id.toString().startsWith('PRD-');
+        
+        return {
+          productId: isAdHoc ? null : parsedId,
+          productName: p.name, // Pass the name for snapshot/ad-hoc items
+          productPrice: Number(p.price || 0),
+          productQuantity: Number(p.quantity || 0),
+          productAmountDiscount:
+            p.discountType === '₹' ? Number(p.discount || 0) : 0,
+          productPercentDiscount:
+            p.discountType === '%' ? Number(p.discount || 0) : 0,
+        };
+      }),
       taxLineItems: validTaxes.map(t => ({
         name: t.name,
         percent: t.type === '%' ? Number(t.value || 0) : 0,

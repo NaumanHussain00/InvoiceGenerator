@@ -61,24 +61,28 @@ export async function addInvoice(req: Request, res: Response) {
       });
 
       if (invoiceLineItems?.length) {
-        // Fetch product details for snapshot
-        const productIds = invoiceLineItems.map((item: any) => item.productId);
-        const products = await tx.product.findMany({
+        // Fetch product details for snapshot (only for valid product IDs)
+        const productIds = invoiceLineItems
+          .map((item: any) => item.productId)
+          .filter((id: any) => id !== null && id !== undefined && !isNaN(Number(id)));
+          
+        const products = productIds.length > 0 ? await tx.product.findMany({
           where: { id: { in: productIds } },
-        });
+        }) : [];
+        
         const productMap = new Map(products.map((p) => [p.id, p]));
 
         await tx.invoiceLineItem.createMany({
           data: invoiceLineItems.map((item: any) => {
-            const product = productMap.get(item.productId);
+            const product = item.productId ? productMap.get(item.productId) : null;
             return {
               invoiceId: createdInvoice.id,
-              productId: item.productId,
+              productId: product ? product.id : null, // Store null if ID not found or invalid
               productQuantity: item.productQuantity,
               productAmountDiscount: item.productAmountDiscount,
               productPercentDiscount: item.productPercentDiscount,
-              // Save product snapshot
-              productName: product?.name,
+              // Save product snapshot - prefer provided name for ad-hoc items
+              productName: item.productName || product?.name || "Unknown Product",
               productPrice: item.productPrice !== undefined ? Number(item.productPrice) : product?.price,
             };
           }),
@@ -494,23 +498,27 @@ export async function updateInvoice(req: Request, res: Response) {
         await tx.invoiceLineItem.deleteMany({ where: { invoiceId } });
         if (invoiceLineItems.length) {
           // Fetch product details for snapshot
-          const productIds = invoiceLineItems.map((item: any) => item.productId);
-          const products = await tx.product.findMany({
+          const productIds = invoiceLineItems
+            .map((item: any) => item.productId)
+            .filter((id: any) => id !== null && id !== undefined && !isNaN(Number(id)));
+
+          const products = productIds.length > 0 ? await tx.product.findMany({
             where: { id: { in: productIds } },
-          });
+          }) : [];
+          
           const productMap = new Map(products.map((p) => [p.id, p]));
 
           await tx.invoiceLineItem.createMany({
             data: invoiceLineItems.map((item: any) => {
-              const product = productMap.get(item.productId);
+              const product = item.productId ? productMap.get(item.productId) : null;
               return {
                 invoiceId,
-                productId: item.productId,
+                productId: product ? product.id : null,
                 productQuantity: item.productQuantity,
                 productAmountDiscount: item.productAmountDiscount,
                 productPercentDiscount: item.productPercentDiscount,
                 // Save product snapshot
-                productName: product?.name,
+                productName: item.productName || product?.name || "Unknown Product",
                 productPrice: item.productPrice !== undefined ? Number(item.productPrice) : product?.price,
               };
             }),
