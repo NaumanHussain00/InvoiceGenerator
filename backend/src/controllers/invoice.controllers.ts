@@ -629,7 +629,7 @@ export async function generateInvoiceById(req: Request, res: Response) {
             <td>${name}</td>
             <td>${formatCurrency(rate)}</td>
             <td>${qty}</td>
-            <td>${formatCurrency(totalDiscount)}</td>
+            <td>${totalDiscount > 0 ? formatCurrency(totalDiscount) : ""}</td>
             <td>${formatCurrency(amountAfterDiscount)}</td>
           </tr>`;
       })
