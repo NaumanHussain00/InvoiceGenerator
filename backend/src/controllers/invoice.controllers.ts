@@ -42,14 +42,16 @@ export async function addInvoice(req: Request, res: Response) {
           totalAmount,
           amountDiscount,
           percentDiscount,
-          // percentTax,
-          // packaging,
-          // transportation,
           finalAmount,
           custPrevBalance: prevBalance,
           paidByCustomer,
           remainingBalance,
           numberOfCartons: numberOfCartons ? Number(numberOfCartons) : null,
+          // Save customer snapshot
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          customerFirm: customer.firm,
+          customerAddress: customer.address,
         } as any,
       });
 
@@ -58,16 +60,28 @@ export async function addInvoice(req: Request, res: Response) {
         data: { balance: remainingBalance },
       });
 
-      // ✅ Correct: singular model names
       if (invoiceLineItems?.length) {
+        // Fetch product details for snapshot
+        const productIds = invoiceLineItems.map((item: any) => item.productId);
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds } },
+        });
+        const productMap = new Map(products.map((p) => [p.id, p]));
+
         await tx.invoiceLineItem.createMany({
-          data: invoiceLineItems.map((item: any) => ({
-            invoiceId: createdInvoice.id,
-            productId: item.productId,
-            productQuantity: item.productQuantity,
-            productAmountDiscount: item.productAmountDiscount,
-            productPercentDiscount: item.productPercentDiscount,
-          })),
+          data: invoiceLineItems.map((item: any) => {
+            const product = productMap.get(item.productId);
+            return {
+              invoiceId: createdInvoice.id,
+              productId: item.productId,
+              productQuantity: item.productQuantity,
+              productAmountDiscount: item.productAmountDiscount,
+              productPercentDiscount: item.productPercentDiscount,
+              // Save product snapshot
+              productName: product?.name,
+              productPrice: product?.price,
+            };
+          }),
         });
       }
 
@@ -596,7 +610,10 @@ export async function generateInvoiceById(req: Request, res: Response) {
 
     const productRows = invoice.invoiceLineItems
       .map((item) => {
-        const rate = item.product?.price || 0;
+        // Use snapshot if available, otherwise fallback to relation
+        const name = (item as any).productName || item.product?.name || "Unnamed Product";
+        const rate = (item as any).productPrice ?? item.product?.price ?? 0;
+        
         const qty = item.productQuantity;
         const percentDiscount = item.productPercentDiscount || 0;
         const amountDiscount = item.productAmountDiscount || 0;
@@ -609,7 +626,7 @@ export async function generateInvoiceById(req: Request, res: Response) {
 
         return `
           <tr>
-            <td>${item.product?.name || "Unnamed Product"}</td>
+            <td>${name}</td>
             <td>${formatCurrency(rate)}</td>
             <td>${qty}</td>
             <td>${formatCurrency(totalDiscount)}</td>
@@ -667,25 +684,42 @@ export async function generateInvoiceById(req: Request, res: Response) {
       })
       .join("");
 
+    const cartonCount = (invoice as any).numberOfCartons ? Number((invoice as any).numberOfCartons) : 0;
+    const multiplier = cartonCount > 0 ? cartonCount : 1;
+
     const packagingRows = invoice.packagingLineItems
       .map(
-        (p) => `
+        (p) => {
+          const totalAmount = p.amount * multiplier;
+          const label = `Packaging: ${p.name}`;
+          const details = cartonCount > 0 ? `${formatCurrency(p.amount)} × ${cartonCount}` : '';
+          
+          return `
         <tr>
-          <td>Packaging: ${p.name}</td>
-          <td></td><td></td><td></td>
-          <td>${formatCurrency(p.amount)}</td>
-        </tr>`
+          <td>${label}</td>
+          <td></td><td></td>
+          <td>${details}</td>
+          <td>${formatCurrency(totalAmount)}</td>
+        </tr>`;
+        }
       )
       .join("");
 
     const transportationRows = invoice.transportationLineItems
       .map(
-        (t) => `
+        (t) => {
+          const totalAmount = t.amount * multiplier;
+          const label = `Transport: ${t.name}`;
+          const details = cartonCount > 0 ? `${formatCurrency(t.amount)} × ${cartonCount}` : '';
+
+          return `
         <tr>
-          <td>Transport: ${t.name}</td>
-          <td></td><td></td><td></td>
-          <td>${formatCurrency(t.amount)}</td>
-        </tr>`
+          <td>${label}</td>
+          <td></td><td></td>
+          <td>${details}</td>
+          <td>${formatCurrency(totalAmount)}</td>
+        </tr>`;
+        }
       )
       .join("");
 
@@ -757,20 +791,20 @@ export async function generateInvoiceById(req: Request, res: Response) {
       table th {
         border-bottom: 2px solid #4B00FF;
         text-align: left;
-        padding: 10px 0;
+        padding: 10px 5px;
         color: #4B00FF;
         text-transform: uppercase;
         font-size: 13px;
       }
       table td {
-        padding: 8px 0;
+        padding: 8px 5px;
         border-bottom: 1px solid #eee;
       }
       colgroup col:nth-child(1) { width: 45%; }
-      colgroup col:nth-child(2),
-      colgroup col:nth-child(3),
-      colgroup col:nth-child(4),
-      colgroup col:nth-child(5) { width: 13.75%; }
+      colgroup col:nth-child(2) { width: 15%; }
+      colgroup col:nth-child(3) { width: 8%; }
+      colgroup col:nth-child(4) { width: 17%; }
+      colgroup col:nth-child(5) { width: 15%; }
       .totals {
         margin-top: 30px;
         width: 100%;

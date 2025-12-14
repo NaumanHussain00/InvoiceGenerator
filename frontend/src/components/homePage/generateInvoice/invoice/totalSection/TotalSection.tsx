@@ -35,6 +35,7 @@ interface TotalSectionProps {
   amountPaid: string;
   setAmountPaid: React.Dispatch<React.SetStateAction<string>>;
   onPaidChange?: (paidByCustomer: string) => void;
+  numberOfCartons?: string;
 }
 
 
@@ -47,7 +48,11 @@ const TotalSection: React.FC<TotalSectionProps> = ({
   amountPaid,
   setAmountPaid,
   onPaidChange,
+  numberOfCartons,
 }) => {
+  const cartonCount = Number(numberOfCartons) || 0;
+  const multiplier = cartonCount > 0 ? cartonCount : 1;
+
   const subtotal = products.reduce((sum, p) => sum + (p.total || 0), 0);
   const discountAmount = discounts.reduce((sum, disc) => {
     const val = Number(disc.value) || 0;
@@ -63,8 +68,11 @@ const TotalSection: React.FC<TotalSectionProps> = ({
   }, 0);
 
   // Step 3: Packing + Transport
-  const packingTotal = packingCharges.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-  const transportTotal = transportOptions.reduce((sum, t) => sum + Number(t.cost || 0), 0);
+  const packingBase = packingCharges.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const packingTotal = packingBase * multiplier;
+
+  const transportBase = transportOptions.reduce((sum, t) => sum + Number(t.cost || 0), 0);
+  const transportTotal = transportBase * multiplier;
 
   // Step 4: Total
   const totalAmount = subtotalAfterDiscount + taxAmount + packingTotal + transportTotal;
@@ -88,13 +96,27 @@ const TotalSection: React.FC<TotalSectionProps> = ({
         <Text style={styles.summaryLabel}>Tax Amount:</Text>
         <Text style={styles.increaseAmount}>+ ₹{taxAmount.toFixed(2)}</Text>
       </View>
+
+      {cartonCount > 0 && (
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>No. of Cartons:</Text>
+          <Text style={styles.normalAmount}>{cartonCount}</Text>
+        </View>
+      )}
+
       <View style={styles.summaryRow}>
         <Text style={styles.summaryLabel}>Packing Charges:</Text>
-        <Text style={styles.increaseAmount}>+ ₹{packingTotal.toFixed(2)}</Text>
+        <Text style={styles.increaseAmount}>
+          + ₹{packingTotal.toFixed(2)}
+          {cartonCount > 0 && packingBase > 0 && ` (${packingBase} × ${cartonCount})`}
+        </Text>
       </View>
       <View style={styles.summaryRowLast}>
         <Text style={styles.summaryLabel}>Transport Charges:</Text>
-        <Text style={styles.increaseAmount}>+ ₹{transportTotal.toFixed(2)}</Text>
+        <Text style={styles.increaseAmount}>
+          + ₹{transportTotal.toFixed(2)}
+          {cartonCount > 0 && transportBase > 0 && ` (${transportBase} × ${cartonCount})`}
+        </Text>
       </View>
 
       <View style={styles.totalBox}>

@@ -157,16 +157,30 @@ export const deleteProduct = async (req: Request, res: Response) => {
       return res.status(404).json(response);
     }
 
+    // Check if product is used in any invoices
+    const usageCount = await prisma.invoiceLineItem.count({
+      where: { productId: id },
+    });
+
+    if (usageCount > 0) {
+      const response = new ResponseEntity(
+        null,
+        `Cannot delete product because it is used in ${usageCount} invoice(s).`,
+        400
+      );
+      return res.status(400).json(response);
+    }
+
     const deletedProduct = await prisma.product.delete({ where: { id } });
     const response = new ResponseEntity(
       deletedProduct,
       "Product Deleted Successfully",
-      204
+      200 // Return 200 to send back the deleted object
     );
-    return res.status(204).json(response);
-  } catch (err) {
+    return res.status(200).json(response);
+  } catch (err: any) {
     console.error(err);
-    const response = new ResponseEntity(null, "Internal Server Error", 500);
+    const response = new ResponseEntity(null, `Internal Server Error: ${err.message}`, 500);
     return res.status(500).json(response);
   }
 };

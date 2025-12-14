@@ -122,9 +122,9 @@ export const getCustomerById = async (req: Request, res: Response) => {
       200
     );
     return res.status(200).json(response);
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
-    const response = new ResponseEntity(null, "Internal Server Error", 500);
+    const response = new ResponseEntity(null, `Internal Server Error: ${err.message}`, 500);
     return res.status(500).json(response);
   }
 };
@@ -187,16 +187,42 @@ export const deleteCustomer = async (req: Request, res: Response) => {
       return res.status(404).json(response);
     }
 
-    const deletedCustomer = await prisma.customer.delete({ where: { id } });
+    // Perform cascade delete manually using transaction
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete all Credits for this customer
+      await tx.credit.deleteMany({ where: { customerId: id } });
+
+      // 2. Find all Invoices for this customer
+      const invoices = await tx.invoice.findMany({
+        where: { customerId: id },
+        select: { id: true },
+      });
+      const invoiceIds = invoices.map((inv) => inv.id);
+
+      if (invoiceIds.length > 0) {
+        // 3. Delete all Line Items associated with these invoices
+        await tx.invoiceLineItem.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+        await tx.taxLineItem.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+        await tx.packagingLineItem.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+        await tx.transportationLineItem.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+
+        // 4. Delete the Invoices themselves
+        await tx.invoice.deleteMany({ where: { id: { in: invoiceIds } } });
+      }
+
+      // 5. Finally, delete the Customer
+      await tx.customer.delete({ where: { id } });
+    });
+
     const response = new ResponseEntity(
-      deletedCustomer,
-      "Customer Deleted Successfully",
-      204
+      existing, // Return the deleted customer data (before deletion)
+      "Customer and all related data deleted successfully",
+      200 // Using 200 instead of 204 to return the deleted object
     );
-    return res.status(204).json(response);
-  } catch (err) {
+    return res.status(200).json(response);
+  } catch (err: any) {
     console.error(err);
-    const response = new ResponseEntity(null, "Internal Server Error", 500);
+    const response = new ResponseEntity(null, `Internal Server Error: ${err.message}`, 500);
     return res.status(500).json(response);
   }
 };

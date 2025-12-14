@@ -248,9 +248,9 @@ const LedgerPage: React.FC = () => {
     const query = searchQuery.toLowerCase().trim();
     return ledgerData.customers.filter(
       customer =>
-        customer.name.toLowerCase().includes(query) ||
-        customer.phone.includes(query) ||
-        customer.firm.toLowerCase().includes(query),
+        (customer.name && customer.name.toLowerCase().includes(query)) ||
+        (customer.phone && customer.phone.includes(query)) ||
+        (customer.firm && customer.firm.toLowerCase().includes(query)),
     );
   };
 
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
   modalBalance: {
     fontSize: typography.fontSize.base,
     color: colors.textInverse,
-    fontWeight: typography.fontWeight.semiBold,
+    fontWeight: typography.fontWeight.semibold,
   },
   closeButton: {
     width: 36,
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
   },
   transactionType: {
     fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semiBold,
+    fontWeight: typography.fontWeight.semibold,
     marginRight: spacing.sm,
   },
   invoiceType: {
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   },
   transactionStatus: {
     fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semiBold,
+    fontWeight: typography.fontWeight.semibold,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   },
   transactionValue: {
     fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semiBold,
+    fontWeight: typography.fontWeight.semibold,
     color: colors.textPrimary,
   },
   amountAdded: {

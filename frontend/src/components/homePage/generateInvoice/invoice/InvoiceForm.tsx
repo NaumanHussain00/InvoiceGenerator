@@ -15,6 +15,7 @@ import { API_BASE_URL } from '../../../../config/api';
 import CustomerSection from './customerSection/CustomerSection';
 import ProductSection from './productSection/ProductSection';
 import { WebView } from 'react-native-webview';
+import RNPrint from 'react-native-print';
 
 import TaxSection from './taxSection/TaxSection';
 import DiscountSection from './discountSection/DiscountSection';
@@ -49,10 +50,10 @@ const Divider = () => <View style={styles.divider} />;
 const InvoiceForm: React.FC = () => {
   const [invoiceData, setInvoiceData] = useState<{
     date: string;
-    invoiceId: number | string;
+    invoiceId: number | string | null;
   }>({
     date: new Date().toISOString().split('T')[0],
-    invoiceId: `INV-${Date.now()}`,
+    invoiceId: null,
   });
 
   const [customerData, setCustomerData] = useState<CustomerData>({
@@ -288,11 +289,34 @@ const InvoiceForm: React.FC = () => {
   return (
     <>
       {htmlContent ? (
-        <WebView
-          originWhitelist={['*']}
-          source={{ html: htmlContent }}
-          style={{ flex: 1 }}
-        />
+        <View style={{ flex: 1 }}>
+          <View style={styles.previewHeader}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setHtmlContent(null)}
+            >
+              <Text style={styles.closeButtonText}>✕ Close</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.printButton}
+              onPress={async () => {
+                try {
+                  await RNPrint.print({ html: htmlContent });
+                } catch (error) {
+                  console.error('Print Error:', error);
+                  Alert.alert('Error', 'Failed to print invoice');
+                }
+              }}
+            >
+              <Text style={styles.printButtonText}>🖨️ Print</Text>
+            </TouchableOpacity>
+          </View>
+          <WebView
+            originWhitelist={['*']}
+            source={{ html: htmlContent }}
+            style={{ flex: 1 }}
+          />
+        </View>
       ) : (
         <>
           <StatusBar barStyle="light-content" backgroundColor="#4A90E2" />
@@ -388,23 +412,24 @@ const InvoiceForm: React.FC = () => {
             />
             <Divider />
 
-            <TotalSection
-              products={products}
-              taxes={taxes}
-              discounts={[
-                {
-                  value: String(
-                    percentDiscount > 0 ? percentDiscount : amountDiscount,
-                  ),
-                  type: percentDiscount > 0 ? '%' : '₹',
-                },
-              ]}
-              packingCharges={packingCharges}
-              transportOptions={transportOptions}
-              amountPaid={amountPaid}
-              setAmountPaid={setAmountPaid}
-              onPaidChange={handlePaidChange}
-            />
+              <TotalSection
+                products={products}
+                taxes={taxes}
+                discounts={[
+                  {
+                    value: String(
+                      percentDiscount > 0 ? percentDiscount : amountDiscount,
+                    ),
+                    type: percentDiscount > 0 ? '%' : '₹',
+                  },
+                ]}
+                packingCharges={packingCharges}
+                transportOptions={transportOptions}
+                amountPaid={amountPaid}
+                setAmountPaid={setAmountPaid}
+                onPaidChange={handlePaidChange}
+                numberOfCartons={numberOfCartons}
+              />
 
             <View style={styles.buttonContainer}>
               <TouchableOpacity
@@ -540,6 +565,32 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   inputBox: { marginBottom: scale(8) },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: scale(10),
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+  },
+  closeButton: {
+    padding: scale(8),
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: scale(14),
+    fontWeight: '600',
+  },
+  printButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(8),
+    borderRadius: scale(6),
+  },
+  printButtonText: {
+    color: '#fff',
+    fontSize: scale(14),
+    fontWeight: '700',
+  },
 });
 
 export default InvoiceForm;
