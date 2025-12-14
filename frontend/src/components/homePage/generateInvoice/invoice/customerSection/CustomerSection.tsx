@@ -164,7 +164,21 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
 
       {/* Name + Dropdown */}
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Name *</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={styles.label}>Name *</Text>
+          {!isEditable && (
+            <TouchableOpacity
+              onPress={() => {
+                setIsEditable(true);
+                setCustomerData({ name: '', phone: '', firm: '', balance: '' });
+                onSelectCustomerId?.(''); // Reset ID
+              }}
+              style={styles.changeBtn}
+            >
+              <Text style={styles.changeBtnText}>Change</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <TextInput
           editable={isEditable}
           style={[styles.input, !isEditable && styles.disabledInput]}
@@ -347,6 +361,17 @@ const styles = StyleSheet.create({
     padding: scale(12), 
     color: '#64748b',
     fontStyle: 'italic',
+  },
+  changeBtn: {
+    backgroundColor: '#3b82f6', // Blue-500
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(4),
+    borderRadius: scale(6),
+  },
+  changeBtnText: {
+    color: '#fff',
+    fontSize: scale(12),
+    fontWeight: '600',
   },
 });
 

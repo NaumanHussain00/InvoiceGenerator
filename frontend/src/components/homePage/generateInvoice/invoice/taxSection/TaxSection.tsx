@@ -106,11 +106,23 @@ const TaxSection: React.FC<TaxSectionProps> = ({
       <View style={styles.card}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{editingIndex !== null ? 'Edit Tax' : 'Add Tax'}</Text>
-          {editingIndex !== null && (
-            <TouchableOpacity onPress={handleCancelEdit} style={styles.removeBtn}>
-              <Text style={styles.removeText}>Cancel</Text>
-            </TouchableOpacity>
-          )}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {editingIndex === null && (
+              <TouchableOpacity
+                onPress={() => {
+                  setCurrentTax({ name: 'GST', value: '', type: '%' });
+                }}
+                style={styles.gstBtn}
+              >
+                <Text style={styles.gstText}>+ GST</Text>
+              </TouchableOpacity>
+            )}
+            {editingIndex !== null && (
+              <TouchableOpacity onPress={handleCancelEdit} style={styles.removeBtn}>
+                <Text style={styles.removeText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <View style={{ borderBottomWidth: 1, borderBottomColor: '#cbd5e1', marginVertical: 10 }} />
@@ -335,6 +347,17 @@ const styles = StyleSheet.create({
   },
   removeText: {
     color: '#dc2626',
+    fontSize: scale(12),
+    fontWeight: '600',
+  },
+  gstBtn: {
+    backgroundColor: '#7c3aed', // Violet-600
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(4),
+    borderRadius: scale(6),
+  },
+  gstText: {
+    color: '#fff',
     fontSize: scale(12),
     fontWeight: '600',
   },
