@@ -67,6 +67,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
     if (onLineItemsChange) {
       const lineItems = products.map(prod => ({
         productId: Number(prod.id) || null, // Assuming prod.id is the backend product ID
+        productPrice: Number(prod.price || 0), // Pass the custom price
         productQuantity: Number(prod.quantity || 0),
         productAmountDiscount:
           prod.discountType === '₹' ? Number(prod.discount || 0) : 0,
@@ -339,12 +340,11 @@ const ProductSection: React.FC<ProductSectionProps> = ({
         <View style={styles.inputBox}>
           <Text style={styles.label}>Price (₹)</Text>
           <TextInput
-            style={[styles.input, currentProduct.name && allProducts.some(p => p.name === currentProduct.name) && { backgroundColor: '#f1f5f9' }]}
+            style={styles.input}
             keyboardType="numeric"
             placeholder="0"
             placeholderTextColor="#94a3b8"
             value={currentProduct.price}
-            editable={!allProducts.some(p => p.name === currentProduct.name)}
             onChangeText={t => updateCurrentProduct('price', t)}
           />
         </View>

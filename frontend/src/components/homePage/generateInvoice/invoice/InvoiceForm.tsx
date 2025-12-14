@@ -220,6 +220,7 @@ const InvoiceForm: React.FC = () => {
       paidByCustomer: Number(amountPaid || 0),
       invoiceLineItems: validProducts.map(p => ({
         productId: Number(p.id),
+        productPrice: Number(p.price || 0),
         productQuantity: Number(p.quantity || 0),
         productAmountDiscount:
           p.discountType === '₹' ? Number(p.discount || 0) : 0,

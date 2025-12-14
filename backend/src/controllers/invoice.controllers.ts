@@ -79,7 +79,7 @@ export async function addInvoice(req: Request, res: Response) {
               productPercentDiscount: item.productPercentDiscount,
               // Save product snapshot
               productName: product?.name,
-              productPrice: product?.price,
+              productPrice: item.productPrice !== undefined ? Number(item.productPrice) : product?.price,
             };
           }),
         });
@@ -493,14 +493,27 @@ export async function updateInvoice(req: Request, res: Response) {
       if (invoiceLineItems) {
         await tx.invoiceLineItem.deleteMany({ where: { invoiceId } });
         if (invoiceLineItems.length) {
+          // Fetch product details for snapshot
+          const productIds = invoiceLineItems.map((item: any) => item.productId);
+          const products = await tx.product.findMany({
+            where: { id: { in: productIds } },
+          });
+          const productMap = new Map(products.map((p) => [p.id, p]));
+
           await tx.invoiceLineItem.createMany({
-            data: invoiceLineItems.map((item: any) => ({
-              invoiceId,
-              productId: item.productId,
-              productQuantity: item.productQuantity,
-              productAmountDiscount: item.productAmountDiscount,
-              productPercentDiscount: item.productPercentDiscount,
-            })),
+            data: invoiceLineItems.map((item: any) => {
+              const product = productMap.get(item.productId);
+              return {
+                invoiceId,
+                productId: item.productId,
+                productQuantity: item.productQuantity,
+                productAmountDiscount: item.productAmountDiscount,
+                productPercentDiscount: item.productPercentDiscount,
+                // Save product snapshot
+                productName: product?.name,
+                productPrice: item.productPrice !== undefined ? Number(item.productPrice) : product?.price,
+              };
+            }),
           });
         }
       }
@@ -612,7 +625,14 @@ export async function generateInvoiceById(req: Request, res: Response) {
       .map((item) => {
         // Use snapshot if available, otherwise fallback to relation
         const name = (item as any).productName || item.product?.name || "Unnamed Product";
-        const rate = (item as any).productPrice ?? item.product?.price ?? 0;
+        let rate = 0;
+        if ((item as any).productPrice != null) {
+             rate = Number((item as any).productPrice);
+        } else {
+             rate = Number(item.product?.price ?? 0);
+        }
+        
+        console.log(`PDF Gen - Item: ${name}, Rate Used: ${rate}`);
         
         const qty = item.productQuantity;
         const percentDiscount = item.productPercentDiscount || 0;
@@ -865,9 +885,13 @@ export async function generateInvoiceById(req: Request, res: Response) {
 
       <table>
         <colgroup><col /><col /><col /><col /><col /></colgroup>
-        <tr>
-          <th>PRODUCTS</th><th>RATE</th><th>QTY</th><th>DISCOUNT</th><th>AMOUNT</th>
-        </tr>
+          <tr>
+            <th>PRODUCTS</th>
+            <th>RATE</th>
+            <th>QTY</th>
+            <th>DISCOUNT</th>
+            <th>AMOUNT</th>
+          </tr>
         ${productRows}
       </table>
 
