@@ -126,10 +126,10 @@ const TotalSection: React.FC<TotalSectionProps> = ({
         </View>
       </View>
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Amount Paid by Customer (₹)</Text>
+      <View style={styles.paidInputContainer}>
+        <Text style={styles.paidLabel}>Amount Paid by Customer (₹)</Text>
         <TextInput
-          style={styles.input}
+          style={styles.paidInput}
           keyboardType="numeric"
           value={amountPaid}
           onChangeText={(value) => {
@@ -278,6 +278,31 @@ const styles = StyleSheet.create({
     paddingVertical: scale(8),
     fontSize: scale(14),
     color: '#000',
+  },
+  paidInputContainer: {
+    marginBottom: scale(16),
+    backgroundColor: '#f0fdf4', // Light green background
+    padding: scale(12),
+    borderRadius: scale(8),
+    borderWidth: 1,
+    borderColor: '#22c55e', // Green border
+  },
+  paidLabel: {
+    fontSize: scale(14),
+    fontWeight: '700',
+    color: '#15803d', // Dark green text
+    marginBottom: scale(6),
+  },
+  paidInput: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#22c55e', // Green border
+    borderRadius: scale(6),
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(10),
+    fontSize: scale(18), // Larger font
+    fontWeight: '700',
+    color: '#15803d',
   },
   balanceBox: {
     padding: scale(12),
