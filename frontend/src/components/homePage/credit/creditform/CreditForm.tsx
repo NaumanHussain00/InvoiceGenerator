@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import RNPrint from 'react-native-print';
 import {
   View,
   Text,
@@ -136,13 +137,40 @@ const CreditForm: React.FC = () => {
     }
   };
 
+
+
+// ... (inside component)
+
   if (htmlContent) {
     return (
-      <WebView
-        originWhitelist={['*']}
-        source={{ html: htmlContent }}
-        style={{ flex: 1 }}
-      />
+      <View style={{ flex: 1 }}>
+        <View style={styles.previewHeader}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setHtmlContent(null)}
+          >
+            <Text style={styles.closeButtonText}>✕ Close</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.printButton}
+            onPress={async () => {
+              try {
+                await RNPrint.print({ html: htmlContent });
+              } catch (error) {
+                console.error('Print Error:', error);
+                Alert.alert('Error', 'Failed to print credit note');
+              }
+            }}
+          >
+            <Text style={styles.printButtonText}>🖨️ Print</Text>
+          </TouchableOpacity>
+        </View>
+        <WebView
+          originWhitelist={['*']}
+          source={{ html: htmlContent }}
+          style={{ flex: 1 }}
+        />
+      </View>
     );
   }
 
@@ -272,6 +300,32 @@ const styles = StyleSheet.create({
   resultText: {
     color: '#1B5E20',
     fontWeight: '500',
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 10,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  printButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  printButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 
