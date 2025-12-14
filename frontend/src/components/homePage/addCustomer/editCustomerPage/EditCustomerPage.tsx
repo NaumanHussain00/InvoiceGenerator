@@ -81,9 +81,9 @@ const EditCustomerPage: React.FC = () => {
     const query = searchQuery.toLowerCase();
     const filtered = customers.filter(
       customer =>
-        customer.name.toLowerCase().includes(query) ||
-        customer.phone.includes(query) ||
-        customer.firm.toLowerCase().includes(query),
+        (customer.name && customer.name.toLowerCase().includes(query)) ||
+        (customer.phone && customer.phone.includes(query)) ||
+        (customer.firm && customer.firm.toLowerCase().includes(query)),
     );
     setFilteredCustomers(filtered);
   };

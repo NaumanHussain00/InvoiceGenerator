@@ -125,9 +125,9 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
     const query = searchQuery.toLowerCase();
     return customers.filter(
       c =>
-        c.name.toLowerCase().includes(query) ||
-        c.phone.includes(query) ||
-        c.firm.toLowerCase().includes(query),
+        (c.name && c.name.toLowerCase().includes(query)) ||
+        (c.phone && c.phone.includes(query)) ||
+        (c.firm && c.firm.toLowerCase().includes(query)),
     );
   };
 
