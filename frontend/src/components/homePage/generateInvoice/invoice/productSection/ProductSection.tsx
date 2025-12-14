@@ -56,7 +56,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
     price: '',
     quantity: '',
     discount: '',
-    discountType: '%',
+    discountType: '₹',
     total: 0,
   };
   const [currentProduct, setCurrentProduct] = useState<Product>(initialProductState);

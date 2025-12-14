@@ -82,6 +82,23 @@ const AppLockScreen: React.FC<AppLockScreenProps> = ({ onUnlock }) => {
     }
   };
 
+  const handleChangePasswordRequest = async () => {
+    try {
+      const savedPassword = await AsyncStorage.getItem(APP_PASSWORD_KEY);
+      if (password === savedPassword) {
+        setIsSettingPassword(true);
+        setPassword('');
+      } else {
+        Alert.alert(
+          'Authentication Required',
+          'Please enter your current password in the field above to change it.',
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to verify password');
+    }
+  };
+
   if (isSettingPassword) {
     return (
       <View style={styles.container}>
@@ -142,12 +159,15 @@ const AppLockScreen: React.FC<AppLockScreenProps> = ({ onUnlock }) => {
           onSubmitEditing={handleLogin}
           autoFocus
         />
+
+
+  // ... (inside render)
         <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>Unlock</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.linkButton}
-          onPress={() => setIsSettingPassword(true)}
+          onPress={handleChangePasswordRequest}
         >
           <Text style={styles.linkText}>Change Password</Text>
         </TouchableOpacity>

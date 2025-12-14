@@ -11,7 +11,7 @@ interface DiscountSectionProps {
 
 const DiscountSection: React.FC<DiscountSectionProps> = ({ onDiscountChange, previousTotal }) => {
   const [value, setValue] = useState<string>('');
-  const [type, setType] = useState<'%' | '₹'>('%');
+  const [type, setType] = useState<'%' | '₹'>('₹');
 
   useEffect(() => {
     const amountDiscount = type === '₹' ? Number(value || 0) : 0;

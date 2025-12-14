@@ -34,7 +34,7 @@ const TaxSection: React.FC<TaxSectionProps> = ({
   onTaxChange,
   grandTotal,
 }) => {
-  const initialTaxState: Tax = { name: '', value: '', type: '%' };
+  const initialTaxState: Tax = { name: '', value: '', type: '₹' };
   const [currentTax, setCurrentTax] = React.useState<Tax>(initialTaxState);
   const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
 
