@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, API_FALLBACK_URLS, fetchWithFallback } from '../../../../../config/api';
+import productService from '../../../../../services/product.service';
 
 import {
   View,
@@ -82,19 +82,11 @@ const ProductSection: React.FC<ProductSectionProps> = ({
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await fetchWithFallback('/products', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const json = await res.json();
-      if (res.status === 200 && json?.data) {
-        const sorted = json.data.sort((a: ApiProduct, b: ApiProduct) =>
-          a.name.localeCompare(b.name),
-        );
-        setAllProducts(sorted);
-      } else {
-        setAllProducts([]);
-      }
+      const productsData = await productService.getAllProducts();
+      const sorted = productsData.sort((a: ApiProduct, b: ApiProduct) =>
+        a.name.localeCompare(b.name),
+      );
+      setAllProducts(sorted);
     } catch (err: any) {
       console.warn('Failed to fetch products:', err?.message);
       setAllProducts([]);

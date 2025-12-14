@@ -17,7 +17,7 @@ import {
   shadows,
   typography,
 } from '../../../../theme/theme';
-import { apiRequestWithFallback } from '../../../../config/apiClient';
+import customerService from '../../../../services/customer.service';
 
 interface Customer {
   id: number;
@@ -55,15 +55,13 @@ const EditCustomerPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await apiRequestWithFallback({
-        method: 'GET',
-        url: '/customers',
-      });
-
-      if (response && response.data) {
-        setCustomers(response.data);
-        setFilteredCustomers(response.data);
-      }
+      const customersData = await customerService.getAllCustomers();
+      const formattedCustomers = customersData.map(c => ({
+        ...c,
+        balance: c.balance.toString(),
+      }));
+      setCustomers(formattedCustomers);
+      setFilteredCustomers(formattedCustomers);
     } catch (error: any) {
       Alert.alert('Error', 'Failed to fetch customers');
       console.error(error);
@@ -108,30 +106,24 @@ const EditCustomerPage: React.FC = () => {
     }
 
     try {
-      const response = await apiRequestWithFallback({
-        method: 'PUT',
-        url: `/customers/${editingCustomer?.id}`,
-        data: {
-          name: editName.trim(),
-          phone: editPhone.trim(),
-          firm: editFirm.trim(),
-          balance: editBalance,
-        },
+      const updated = await customerService.updateCustomer(editingCustomer!.id, {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        firm: editFirm.trim(),
+        balance: editBalance ? Number(editBalance) : undefined,
       });
 
-      if (response && response.data) {
-        // Update local state
-        const updatedCustomers = customers.map(c =>
-          c.id === editingCustomer?.id ? response.data : c,
-        );
-        setCustomers(updatedCustomers);
+      // Update local state
+      const updatedCustomers = customers.map(c =>
+        c.id === editingCustomer?.id ? { ...updated, balance: updated.balance.toString() } : c,
+      );
+      setCustomers(updatedCustomers);
 
-        Alert.alert('Success', 'Customer updated successfully');
-        setModalVisible(false);
-        setEditingCustomer(null);
-      }
+      Alert.alert('Success', 'Customer updated successfully');
+      setModalVisible(false);
+      setEditingCustomer(null);
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to update customer');
+      Alert.alert('Error', error.message || 'Failed to update customer');
       console.error(error);
     }
   };
@@ -153,16 +145,13 @@ const EditCustomerPage: React.FC = () => {
 
   const handleDelete = async (customerId: number) => {
     try {
-      await apiRequestWithFallback({
-        method: 'DELETE',
-        url: `/customers/${customerId}`,
-      });
+      await customerService.deleteCustomer(customerId);
 
       const updatedCustomers = customers.filter(c => c.id !== customerId);
       setCustomers(updatedCustomers);
       Alert.alert('Success', 'Customer deleted successfully');
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to delete customer');
+      Alert.alert('Error', error.message || 'Failed to delete customer');
       console.error(error);
     }
   };

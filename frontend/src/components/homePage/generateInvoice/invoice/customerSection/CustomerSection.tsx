@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, API_FALLBACK_URLS } from '../../../../../config/api';
+import customerService from '../../../../../services/customer.service';
 import {
   View,
   Text,
@@ -81,37 +81,14 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
   const fetchCustomers = async () => {
     setLoading(true);
 
-    const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-    let lastError: any = null;
-    let success = false;
-
-    for (const baseUrl of candidates) {
-      try {
-        const res = await fetch(`${baseUrl}/customers`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-        const json = await res.json();
-        if (res.status === 200 && json?.data) {
-          const sorted = json.data.sort((a: CustomerData, b: CustomerData) =>
-            a.name.localeCompare(b.name),
-          );
-          setCustomers(sorted);
-          success = true;
-          break;
-        }
-      } catch (err: any) {
-        lastError = err;
-        console.warn(
-          `Failed to fetch customers from ${baseUrl}:`,
-          err?.message,
-        );
-      }
-    }
-
-    if (!success) {
-      console.error('Failed to fetch customers from all endpoints', lastError);
+    try {
+      const customersData = await customerService.getAllCustomers();
+      const sorted = customersData.sort((a: any, b: any) =>
+        a.name.localeCompare(b.name),
+      );
+      setCustomers(sorted);
+    } catch (err: any) {
+      console.error('Failed to fetch customers:', err?.message);
       setCustomers([]);
     }
 

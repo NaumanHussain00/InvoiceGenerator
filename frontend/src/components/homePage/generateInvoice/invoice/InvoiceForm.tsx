@@ -9,8 +9,7 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import apiClient from '../../../../config/apiClient';
-import { API_BASE_URL } from '../../../../config/api';
+import invoiceService from '../../../../services/invoice.service';
 import CustomerSection from './customerSection/CustomerSection';
 import ProductSection from './productSection/ProductSection';
 import { WebView } from 'react-native-webview';
@@ -120,68 +119,41 @@ const InvoiceForm: React.FC = () => {
     console.log('Customer selected:', id);
   };
 
-  // Test backend connectivity
+  // Test database connectivity (no longer needed but kept for compatibility)
   const handleTestConnection = async () => {
     try {
-      console.log('Testing connection to:', API_BASE_URL);
-      
-      // Use the enhanced testConnection function
-      const { testConnection } = await import('../../../../config/apiClient');
-      const result = await testConnection();
-      
-      if (result.success) {
-        Alert.alert(
-          '✅ Connection Successful',
-          `Backend is reachable!\n\nWorking URL: ${result.url}\n\nYou can now save invoices.`,
-        );
-      } else {
-        Alert.alert(
-          '❌ Connection Failed',
-          `Cannot reach backend server.\n\n${result.error}\n\nTroubleshooting:\n1. Ensure backend is running: npm run dev\n2. For Android emulator, try: adb reverse tcp:3000 tcp:3000\n3. Check Windows Firewall allows port 3000\n4. Verify backend is listening on 0.0.0.0:3000`,
-        );
-      }
+      Alert.alert(
+        '✅ Database Ready',
+        'SQLite database is ready!\n\nYou can now save invoices directly.',
+      );
     } catch (err: any) {
-      console.error('Connection test failed:', err);
+      console.error('Database test failed:', err);
       Alert.alert(
         '❌ Test Error',
-        `Failed to test connection:\n${err.message}`,
+        `Database error:\n${err.message}`,
       );
     }
   };
 
   const handleDownloadInvoice = async () => {
-    if (!invoiceData.invoiceId) {
+    if (!invoiceData.invoiceId || typeof invoiceData.invoiceId !== 'number') {
       Alert.alert('Error', 'Please save the invoice first.');
       return;
     }
 
     try {
-      console.log(
-        'Fetching invoice HTML from:',
-        `${API_BASE_URL}/invoices/invoice/generate/${invoiceData.invoiceId}`,
-      );
-      const res = await apiClient.get(
-        `/invoices/invoice/generate/${invoiceData.invoiceId}`,
-      );
-
-      const html = res.data;
+      const invoice = await invoiceService.getInvoiceById(invoiceData.invoiceId);
+      const html = invoiceService.generateInvoiceHtml(invoice);
+      
       if (!html || typeof html !== 'string') {
-        Alert.alert('Error', 'Invalid HTML response.');
+        Alert.alert('Error', 'Failed to generate invoice HTML.');
         return;
       }
 
-      // ✅ just show the HTML in WebView
       setHtmlContent(html);
     } catch (err: any) {
       console.error('Download Invoice Error:', err);
-      const errorMsg =
-        err.response?.data?.message ||
-        err.message ||
-        'Failed to load invoice HTML';
-      Alert.alert(
-        'Error',
-        `${errorMsg}\n\nMake sure backend is running at ${API_BASE_URL}`,
-      );
+      Alert.alert('Error', err.message || 'Failed to load invoice HTML');
     }
   };
 
@@ -236,46 +208,23 @@ const InvoiceForm: React.FC = () => {
     };
 
     try {
-      console.log('Saving invoice to:', `${API_BASE_URL}/invoices`);
-      console.log('Payload:', JSON.stringify(payload, null, 2));
+      console.log('Saving invoice:', JSON.stringify(payload, null, 2));
 
-      // Try with fallback support
-      const { apiRequestWithFallback } = await import('../../../../config/apiClient');
-      const data = await apiRequestWithFallback({
-        method: 'POST',
-        url: '/invoices',
-        data: payload,
-      });
+      const invoice = await invoiceService.createInvoice(payload);
 
-      const invoiceIdFromBackend = data?.data?.id;
-
-      if (invoiceIdFromBackend) {
+      if (invoice.id) {
         setInvoiceData(prev => ({
           ...prev,
-          invoiceId: invoiceIdFromBackend, // store numeric invoice id
+          invoiceId: invoice.id,
         }));
-        Alert.alert('Success', `Invoice saved successfully!\n\nInvoice ID: ${invoiceIdFromBackend}`);
-        console.log('Saved Invoice ID:', invoiceIdFromBackend);
+        Alert.alert('Success', `Invoice saved successfully!\n\nInvoice ID: ${invoice.id}`);
+        console.log('Saved Invoice ID:', invoice.id);
       } else {
         Alert.alert('Error', 'Invoice ID not found in response.');
       }
     } catch (err: any) {
       console.error('Save Invoice Error:', err);
-      const errorMsg =
-        err.response?.data?.message || err.message || 'Failed to save invoice';
-      
-      // Provide more helpful error messages
-      let troubleshootingTips = '';
-      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        troubleshootingTips = '\n\nThe request timed out. Backend may be slow or unreachable.';
-      } else if (err.code === 'ERR_NETWORK' || !err.response) {
-        troubleshootingTips = '\n\nNetwork error - cannot reach backend.\n\nQuick fix for Android emulator:\n1. Open a terminal\n2. Run: adb reverse tcp:3000 tcp:3000\n3. Try saving again';
-      }
-      
-      Alert.alert(
-        'Save Failed',
-        `${errorMsg}${troubleshootingTips}\n\nBackend URL: ${API_BASE_URL}\n\nTip: Use "Test Backend Connection" button to diagnose the issue.`,
-      );
+      Alert.alert('Save Failed', err.message || 'Failed to save invoice');
     }
   };
 

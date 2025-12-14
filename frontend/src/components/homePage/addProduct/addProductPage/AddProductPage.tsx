@@ -1,5 +1,4 @@
 import React from 'react';
-import { API_BASE_URL, API_FALLBACK_URLS } from '../../../../config/api';
 import {
   View,
   Text,
@@ -18,6 +17,7 @@ import {
   typography,
   commonStyles,
 } from '../../../../theme/theme';
+import productService from '../../../../services/product.service';
 
 const { width } = Dimensions.get('window');
 const scale = (size: number) => (width / 375) * size;
@@ -69,50 +69,16 @@ const AddProductPage: React.FC<AddProductPageProps> = ({
         price: Number(productData.price),
       };
 
-      console.log('Sending data:', payload);
+      console.log('Creating product:', payload);
 
-      const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-      let lastError: any = null;
-      let success = false;
-
-      for (const baseUrl of candidates) {
-        try {
-          const response = await fetch(`${baseUrl}/products`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          });
-
-          const text = await response.text();
-          console.log('Response status:', response.status);
-          console.log('Response body:', text);
-
-          if (response.status === 201) {
-            Alert.alert('Success', 'Product saved successfully!');
-            setProductData({ name: '', price: '' });
-            navigation.goBack();
-            success = true;
-            break;
-          } else {
-            const errorData = JSON.parse(text);
-            Alert.alert('Error', errorData.message || 'Failed to save product');
-            break;
-          }
-        } catch (err: any) {
-          lastError = err;
-          console.warn(`Failed to save product on ${baseUrl}:`, err?.message);
-        }
-      }
-
-      if (!success && lastError) {
-        console.error('Network error:', lastError);
-        Alert.alert('Error', 'Failed to connect to server');
-      }
-    } catch (error) {
-      console.error('Network Error:', error);
-      Alert.alert('Error', 'Failed to connect to the server.');
+      await productService.createProduct(payload);
+      
+      Alert.alert('Success', 'Product saved successfully!');
+      setProductData({ name: '', price: '' });
+      navigation.goBack();
+    } catch (error: any) {
+      console.error('Save error:', error);
+      Alert.alert('Error', error.message || 'Failed to save product');
     }
   };
 
