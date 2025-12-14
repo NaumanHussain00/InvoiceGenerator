@@ -6476,6 +6476,11 @@ react-native-lightweight-responsive@^0.0.6:
   resolved "https://registry.npmjs.org/react-native-lightweight-responsive/-/react-native-lightweight-responsive-0.0.6.tgz"
   integrity sha512-lrfVB65Z6bBYXMHNepnmKDpU1CboZYc1/O7Q3JqkJPDq1Vmoew88mdrGxq4qsuAalMy+dog6gsSkNXi9oEveUg==
 
+react-native-make@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.npmjs.org/react-native-make/-/react-native-make-1.0.1.tgz"
+  integrity sha512-+Wo2JSp6NyeKleH9aZcdPsW7X8KiBOZkwx6L65UkPCDbk4FlcYd4yw+YIuK0SUVFkUaFHTU1n8LjIjFpT+YICA==
+
 react-native-print@^0.11.0:
   version "0.11.0"
   resolved "https://registry.npmjs.org/react-native-print/-/react-native-print-0.11.0.tgz"
