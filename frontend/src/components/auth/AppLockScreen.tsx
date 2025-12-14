@@ -161,7 +161,7 @@ const AppLockScreen: React.FC<AppLockScreenProps> = ({ onUnlock }) => {
         />
 
 
-  // ... (inside render)
+
         <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>Unlock</Text>
         </TouchableOpacity>

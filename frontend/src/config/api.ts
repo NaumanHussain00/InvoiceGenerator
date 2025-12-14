@@ -11,9 +11,9 @@ import { Platform } from 'react-native';
 
 // Primary API base URL - for Android emulator, use 10.0.2.2 instead of localhost
 export const API_BASE_URL = Platform.select({
-  android: 'http://10.140.166.122:3000',
-  ios: 'http://localhost:3000',
-  default: 'http://localhost:3000',
+  android: 'http://localhost:3000',
+  ios: 'https://invoicegenerator-lgg3.onrender.com',
+  default: 'https://invoicegenerator-lgg3.onrender.com',
 });
 
 // Fallback URLs to try if primary fails
