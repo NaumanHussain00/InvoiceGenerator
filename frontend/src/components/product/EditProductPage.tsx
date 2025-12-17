@@ -10,7 +10,6 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import axios from 'axios';
 import {
   colors,
   spacing,
@@ -19,7 +18,7 @@ import {
   typography,
   commonStyles,
 } from '../../theme/theme';
-import { API_BASE_URL, API_FALLBACK_URLS } from '../../config/api';
+import { getProducts, updateProduct, deleteProduct } from '../../services/OfflineService';
 
 // const API_BASE_URL = 'https://mkqfdpqq-3000.inc1.devtunnels.ms'; // Now using centralized config
 
@@ -53,29 +52,18 @@ const EditProductPage: React.FC = () => {
   const fetchProducts = async () => {
     setLoading(true);
 
-    const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-    let lastError: any = null;
-
-    for (const baseUrl of candidates) {
-      try {
-        const response = await axios.get(`${baseUrl}/products`, {
-          timeout: 5000,
-        });
-        if (response && response.data) {
-          setProducts(response.data.data);
-          setFilteredProducts(response.data.data);
-          lastError = null;
-          break;
-        }
-      } catch (error: any) {
-        lastError = error;
-        console.warn(`Failed to fetch from ${baseUrl}:`, error?.message);
+    try {
+      console.log('[EditProduct] Fetching offline products...');
+      const response = await getProducts();
+      if (response && response.success && response.data) {
+        setProducts(response.data);
+        setFilteredProducts(response.data);
+      } else {
+        throw new Error(response?.message || 'Failed to fetch products');
       }
-    }
-
-    if (lastError) {
-      Alert.alert('Error', 'Failed to fetch products from all endpoints');
-      console.error(lastError);
+    } catch (err: any) {
+       console.error('Fetch error:', err);
+       Alert.alert('Error', err.message || 'Failed to fetch products');
     }
 
     setLoading(false);
@@ -103,6 +91,8 @@ const EditProductPage: React.FC = () => {
   };
 
   const handleSaveEdit = async () => {
+    if (!editingProduct) return;
+
     if (!editName.trim()) {
       Alert.alert('Error', 'Product name cannot be empty');
       return;
@@ -114,43 +104,28 @@ const EditProductPage: React.FC = () => {
       return;
     }
 
-    const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-    let lastError: any = null;
-    let success = false;
+    try {
+      const response = await updateProduct(editingProduct.id, {
+         name: editName.trim(),
+         price: price
+      });
 
-    for (const baseUrl of candidates) {
-      try {
-        const response = await axios.put(
-          `${baseUrl}/products/${editingProduct?.id}`,
-          {
-            name: editName.trim(),
-            price,
-          },
-          { timeout: 5000 },
-        );
-
-        if (response && response.data) {
+      if (response && response.success) {
           // Update local state
           const updatedProducts = products.map(p =>
-            p.id === editingProduct?.id ? response.data.data : p,
+            p.id === editingProduct.id ? { ...p, name: editName.trim(), price } : p,
           );
           setProducts(updatedProducts);
 
           Alert.alert('Success', 'Product updated successfully');
           setModalVisible(false);
           setEditingProduct(null);
-          success = true;
-          break;
-        }
-      } catch (error: any) {
-        lastError = error;
-        console.warn(`Failed to update on ${baseUrl}:`, error?.message);
+      } else {
+        throw new Error(response?.message || 'Failed to update product');
       }
-    }
-
-    if (!success && lastError) {
-      Alert.alert('Error', 'Failed to update product');
-      console.error(lastError);
+    } catch (err: any) {
+      console.error('Update error:', err);
+      Alert.alert('Error', err.message || 'Failed to update product');
     }
   };
 
@@ -170,29 +145,18 @@ const EditProductPage: React.FC = () => {
   };
 
   const handleDelete = async (productId: number) => {
-    const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-    let lastError: any = null;
-    let success = false;
-
-    for (const baseUrl of candidates) {
-      try {
-        await axios.delete(`${baseUrl}/products/${productId}`, {
-          timeout: 5000,
-        });
+    try {
+      const response = await deleteProduct(productId);
+      if (response && response.success) {
         const updatedProducts = products.filter(p => p.id !== productId);
         setProducts(updatedProducts);
         Alert.alert('Success', 'Product deleted successfully');
-        success = true;
-        break;
-      } catch (error: any) {
-        lastError = error;
-        console.warn(`Failed to delete on ${baseUrl}:`, error?.message);
+      } else {
+        throw new Error(response?.message || 'Failed to delete product');
       }
-    }
-
-    if (!success && lastError) {
-      Alert.alert('Error', 'Failed to delete product');
-      console.error(lastError);
+    } catch (err: any) {
+       console.error('Delete error:', err);
+       Alert.alert('Error', err.message || 'Failed to delete product');
     }
   };
 

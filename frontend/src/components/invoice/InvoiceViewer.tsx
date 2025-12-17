@@ -8,9 +8,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import axios from 'axios';
+import { generateInvoiceHtml } from '../../services/OfflineService';
 import RNPrint from 'react-native-print';
-import { API_BASE_URL, API_FALLBACK_URLS } from '../../config/api';
 import { colors, spacing, typography } from '../../theme/theme';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -42,38 +41,28 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
   const fetchInvoiceHTML = async () => {
     setLoading(true);
 
-    const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-    let lastError: any = null;
-
-    for (const baseUrl of candidates) {
-      const url = `${baseUrl}/invoices/invoice/generate/${invoiceId}`;
-      try {
-        console.log('[InvoiceViewer] Trying URL:', url);
-        const response = await axios.get(url, { timeout: 5000 });
-        if (response && response.data && typeof response.data === 'string') {
-          console.log('[InvoiceViewer] Success with:', url);
-          setHtmlContent(response.data);
-          lastError = null;
-          break;
-        }
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`[InvoiceViewer] Failed for ${url}:`, err?.message || err);
+    try {
+      console.log('[InvoiceViewer] Generating offline HTML for ID:', invoiceId);
+      const result = await generateInvoiceHtml(Number(invoiceId));
+      
+      if (result.success && result.data) {
+        setHtmlContent(result.data);
+      } else {
+        Alert.alert('Error', 'Failed to generate invoice. Please try again.', [
+           {
+             text: 'Go Back',
+             onPress: () => navigation.goBack(),
+           }
+        ]);
       }
-    }
-
-    if (lastError) {
-      Alert.alert('Error', 'Failed to load invoice. Please try again.', [
-        {
-          text: 'Go Back',
-          onPress: () => navigation.goBack(),
-        },
-        {
-          text: 'Retry',
-          onPress: () => fetchInvoiceHTML(),
-        },
+    } catch (err: any) {
+      console.error('[InvoiceViewer] Error:', err);
+      Alert.alert('Error', err.message || 'Failed to load invoice.', [
+          {
+            text: 'Go Back',
+            onPress: () => navigation.goBack(),
+          }
       ]);
-      console.error('[InvoiceViewer] All endpoints failed:', lastError);
     }
 
     setLoading(false);
@@ -177,7 +166,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: colors.textInverse,
     fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semiBold,
+    fontWeight: typography.fontWeight.semibold,
   },
   headerTitle: {
     fontSize: typography.fontSize.lg,
@@ -218,7 +207,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: colors.textInverse,
     fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semiBold,
+    fontWeight: typography.fontWeight.semibold,
   },
   webview: {
     flex: 1,
@@ -231,7 +220,7 @@ const styles = StyleSheet.create({
   printButtonText: {
     color: colors.textInverse,
     fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semiBold,
+    fontWeight: typography.fontWeight.semibold,
   },
 });
 

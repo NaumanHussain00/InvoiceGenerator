@@ -8,9 +8,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import axios from 'axios';
+import { generateCreditHtml } from '../../services/OfflineService';
 import RNPrint from 'react-native-print';
-import { API_BASE_URL, API_FALLBACK_URLS } from '../../config/api';
 import { colors, spacing, typography } from '../../theme/theme';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -42,27 +41,17 @@ const CreditViewer: React.FC<CreditViewerProps> = ({ route, navigation }) => {
   const fetchCreditHTML = async () => {
     setLoading(true);
 
-    const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-    let lastError: any = null;
+    try {
+      console.log('[CreditViewer] Generating offline HTML for:', creditId);
+      const response = await generateCreditHtml(Number(creditId));
 
-    for (const baseUrl of candidates) {
-      const url = `${baseUrl}/credits/credit/generate/${creditId}`;
-      try {
-        console.log('[CreditViewer] Trying URL:', url);
-        const response = await axios.get(url, { timeout: 5000 });
-        if (response && response.data && typeof response.data === 'string') {
-          console.log('[CreditViewer] Success with:', url);
-          setHtmlContent(response.data);
-          lastError = null;
-          break;
-        }
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`[CreditViewer] Failed for ${url}:`, err?.message || err);
+      if (response && response.success && response.data) {
+         setHtmlContent(response.data);
+      } else {
+         throw new Error(response?.message || 'Failed to generate HTML');
       }
-    }
-
-    if (lastError) {
+    } catch (err: any) {
+      console.error('[CreditViewer] Error:', err);
       Alert.alert('Error', 'Failed to load credit note. Please try again.', [
         {
           text: 'Go Back',
@@ -73,10 +62,9 @@ const CreditViewer: React.FC<CreditViewerProps> = ({ route, navigation }) => {
           onPress: () => fetchCreditHTML(),
         },
       ]);
-      console.error('[CreditViewer] All endpoints failed:', lastError);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handlePrint = async () => {

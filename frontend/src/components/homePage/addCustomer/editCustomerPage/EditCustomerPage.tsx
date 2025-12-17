@@ -17,7 +17,7 @@ import {
   shadows,
   typography,
 } from '../../../../theme/theme';
-import { apiRequestWithFallback } from '../../../../config/apiClient';
+import { getCustomersInfo, updateCustomer, deleteCustomer } from '../../../../services/OfflineService';
 
 interface Customer {
   id: number;
@@ -55,17 +55,16 @@ const EditCustomerPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await apiRequestWithFallback({
-        method: 'GET',
-        url: '/customers',
-      });
-
-      if (response && response.data) {
+      console.log('[EditCustomer] Fetching offline customers...');
+      const response = await getCustomersInfo();
+      if (response && response.success && response.data) {
         setCustomers(response.data);
         setFilteredCustomers(response.data);
+      } else {
+         throw new Error(response?.message || 'Failed to fetch customers');
       }
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to fetch customers');
+      Alert.alert('Error', error.message || 'Failed to fetch customers');
       console.error(error);
     }
 
@@ -98,6 +97,8 @@ const EditCustomerPage: React.FC = () => {
   };
 
   const handleSaveEdit = async () => {
+    if (!editingCustomer) return;
+
     if (!editName.trim()) {
       Alert.alert('Error', 'Customer name cannot be empty');
       return;
@@ -108,30 +109,33 @@ const EditCustomerPage: React.FC = () => {
     }
 
     try {
-      const response = await apiRequestWithFallback({
-        method: 'PUT',
-        url: `/customers/${editingCustomer?.id}`,
-        data: {
-          name: editName.trim(),
-          phone: editPhone.trim(),
-          firm: editFirm.trim(),
-          balance: editBalance,
-        },
+      const response = await updateCustomer(editingCustomer.id, {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        firm: editFirm.trim(),
+        balance: editBalance ? Number(editBalance) : 0,
       });
 
-      if (response && response.data) {
+      if (response && response.success) {
         // Update local state
         const updatedCustomers = customers.map(c =>
-          c.id === editingCustomer?.id ? response.data : c,
+          c.id === editingCustomer.id ? { 
+              ...c, 
+              name: editName.trim(),
+              phone: editPhone.trim(),
+              firm: editFirm.trim(),
+              balance: editBalance
+          } : c,
         );
         setCustomers(updatedCustomers);
-
         Alert.alert('Success', 'Customer updated successfully');
         setModalVisible(false);
         setEditingCustomer(null);
+      } else {
+         throw new Error(response?.message || 'Failed to update customer');
       }
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to update customer');
+      Alert.alert('Error', error.message || 'Failed to update customer');
       console.error(error);
     }
   };
@@ -153,16 +157,16 @@ const EditCustomerPage: React.FC = () => {
 
   const handleDelete = async (customerId: number) => {
     try {
-      await apiRequestWithFallback({
-        method: 'DELETE',
-        url: `/customers/${customerId}`,
-      });
-
-      const updatedCustomers = customers.filter(c => c.id !== customerId);
-      setCustomers(updatedCustomers);
-      Alert.alert('Success', 'Customer deleted successfully');
+      const response = await deleteCustomer(customerId);
+      if (response && response.success) {
+          const updatedCustomers = customers.filter(c => c.id !== customerId);
+          setCustomers(updatedCustomers);
+          Alert.alert('Success', 'Customer deleted successfully');
+      } else {
+          throw new Error(response?.message || 'Failed to delete customer');
+      }
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to delete customer');
+      Alert.alert('Error', error.message || 'Failed to delete customer');
       console.error(error);
     }
   };

@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import CustomerSection from '../../generateInvoice/invoice/customerSection/CustomerSection';
-import axios from 'axios';
-import { API_BASE_URL, API_FALLBACK_URLS } from '../../../../config/api';
+import { createCredit, generateCreditHtml } from '../../../../services/OfflineService';
 
 interface CustomerData {
   name: string;
@@ -50,45 +49,19 @@ const CreditForm: React.FC = () => {
 
     try {
       setCreating(true);
+      console.log('[Credit] Creating offline credit...');
 
-      const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-      let lastError: any = null;
-      let success = false;
+      const response = await createCredit(Number(customerId), parseFloat(amountPaid));
 
-      for (const baseUrl of candidates) {
-        try {
-          const res = await fetch(`${baseUrl}/credits/customer/${customerId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              amountPaidByCustomer: parseFloat(amountPaid),
-            }),
-          });
-
-          const json = await res.json();
-
-          if (res.status === 201 && json?.data) {
-            setCreditId(json.data.id);
-            Alert.alert(
-              'Success',
-              json.message || 'Credit created successfully',
-            );
-            success = true;
-            break;
-          } else {
-            Alert.alert('Error', json.message || 'Failed to create credit');
-            break;
-          }
-        } catch (err: any) {
-          lastError = err;
-          console.warn(`Failed to create credit on ${baseUrl}:`, err?.message);
-        }
+      if (response && response.success && response.data) {
+        setCreditId(response.data.id);
+        Alert.alert('Success', response.message || 'Credit created successfully');
+      } else {
+        throw new Error(response?.message || 'Failed to create credit');
       }
-
-      if (!success && lastError) {
-        console.error('Failed to create credit', lastError);
-        Alert.alert('Error', 'Something went wrong');
-      }
+    } catch (err: any) {
+      console.error('Create error:', err);
+      Alert.alert('Error', err.message || 'Failed to create credit');
     } finally {
       setCreating(false);
     }
@@ -102,36 +75,18 @@ const CreditForm: React.FC = () => {
 
     try {
       setDownloading(true);
+      console.log('[Credit] Generating offline HTML...');
 
-      const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-      let lastError: any = null;
+      const response = await generateCreditHtml(creditId);
 
-      for (const baseUrl of candidates) {
-        try {
-          const res = await axios.get(
-            `${baseUrl}/credits/credit/generate/${creditId}`,
-            { timeout: 5000 },
-          );
-
-          const html = res.data;
-          if (!html || typeof html !== 'string') {
-            Alert.alert('Error', 'Invalid HTML response.');
-            return;
-          }
-
-          setHtmlContent(html);
-          lastError = null;
-          break;
-        } catch (err: any) {
-          lastError = err;
-          console.warn(`Failed to download from ${baseUrl}:`, err?.message);
-        }
+      if (response && response.success && response.data) {
+        setHtmlContent(response.data);
+      } else {
+        throw new Error(response?.message || 'Failed to generate HTML');
       }
-
-      if (lastError) {
-        console.error('Download error:', lastError);
-        Alert.alert('Error', 'Failed to load credit HTML.');
-      }
+    } catch (err: any) {
+      console.error('Download error:', err);
+      Alert.alert('Error', err.message || 'Failed to load credit HTML.');
     } finally {
       setDownloading(false);
     }

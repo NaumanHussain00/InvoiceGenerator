@@ -12,7 +12,6 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   colors,
@@ -22,7 +21,7 @@ import {
   typography,
   commonStyles,
 } from '../../theme/theme';
-import { API_BASE_URL, API_FALLBACK_URLS } from '../../config/api';
+import { getLedgerOverview, getCustomerHistory } from '../../services/OfflineService';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -149,45 +148,17 @@ const LedgerPage: React.FC = () => {
   const fetchLedgerData = async () => {
     setLoading(true);
 
-    // Try multiple backend URLs
-    const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-
-    let lastError: any = null;
-    for (const baseUrl of candidates) {
-      const url = `${baseUrl}/customers/ledger`;
-      try {
-        console.log('[Ledger] Trying URL:', url);
-        const response = await axios.get(url, { timeout: 5000 });
-        if (response && response.data) {
-          console.log('[Ledger] Success with:', url);
-          setLedgerData(response.data.data);
-          lastError = null;
-          break;
-        }
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`[Ledger] Failed for ${url}:`, err?.message || err);
-        // continue to next candidate
-      }
-    }
-
-    if (lastError) {
-      // Give a clearer error message to the user
-      const status = lastError.response?.status;
-      const isNetworkError = lastError.message?.includes('Network Error');
-
-      let msg = 'Failed to fetch ledger data.';
-      if (status === 404) {
-        msg = 'Ledger endpoint not found (404). Check backend routes.';
-      } else if (isNetworkError) {
-        msg =
-          'Cannot reach backend server. Make sure:\n1. Backend is running on port 3000\n2. You are using Android emulator (not physical device)';
+    try {
+      console.log('[Ledger] Fetching offline data');
+      const response = await getLedgerOverview();
+      if (response && response.success && response.data) {
+        setLedgerData(response.data);
       } else {
-        msg = `Backend error: ${lastError.message || 'Unknown error'}`;
+        throw new Error(response?.message || 'Failed to fetch ledger');
       }
-
-      Alert.alert('Connection Error', msg);
-      console.error('[Ledger] All endpoints failed:', lastError);
+    } catch (err: any) {
+      console.error('[Ledger] Offline fetch failed:', err);
+      Alert.alert('Error', err.message || 'Failed to load ledger data.');
     }
 
     setLoading(false);
@@ -202,29 +173,17 @@ const LedgerPage: React.FC = () => {
   const fetchCustomerHistory = async (customerId: number) => {
     setHistoryLoading(true);
 
-    const candidates = [API_BASE_URL, ...API_FALLBACK_URLS];
-    let lastError: any = null;
-
-    for (const baseUrl of candidates) {
-      const url = `${baseUrl}/customers/history/${customerId}`;
-      try {
-        console.log('[History] Trying URL:', url);
-        const response = await axios.get(url, { timeout: 5000 });
-        if (response && response.data) {
-          console.log('[History] Success with:', url);
-          setCustomerHistory(response.data.data);
-          lastError = null;
-          break;
-        }
-      } catch (err: any) {
-        lastError = err;
-        console.warn(`[History] Failed for ${url}:`, err?.message || err);
+    try {
+      console.log('[History] Fetching offline history for:', customerId);
+      const response = await getCustomerHistory(customerId);
+      if (response && response.success && response.data) {
+        setCustomerHistory(response.data);
+      } else {
+        throw new Error(response?.message || 'Failed to fetch history');
       }
-    }
-
-    if (lastError) {
-      Alert.alert('Error', 'Failed to fetch customer history');
-      console.error('[History] All endpoints failed:', lastError);
+    } catch (err: any) {
+      console.error('[History] Offline fetch failed:', err);
+      Alert.alert('Error', err.message || 'Failed to fetch customer history');
     }
 
     setHistoryLoading(false);

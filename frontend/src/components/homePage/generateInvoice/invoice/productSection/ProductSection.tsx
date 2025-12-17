@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, API_FALLBACK_URLS, fetchWithFallback } from '../../../../../config/api';
+import { getProducts } from '../../../../../services/OfflineService';
 
 import {
   View,
@@ -83,16 +83,19 @@ const ProductSection: React.FC<ProductSectionProps> = ({
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await fetchWithFallback('/products', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const json = await res.json();
-      if (res.status === 200 && json?.data) {
-        const sorted = json.data.sort((a: ApiProduct, b: ApiProduct) =>
+      const res = await getProducts();
+      if (res.success && res.data) {
+        // Map offline product to ApiProduct format
+        // Offline: { id, name, price, ... }
+        // ApiProduct: { id, name, price }
+        const mapped = res.data.map((p: any) => ({
+             id: p.id,
+             name: p.name,
+             price: p.price
+        })).sort((a: ApiProduct, b: ApiProduct) =>
           a.name.localeCompare(b.name),
         );
-        setAllProducts(sorted);
+        setAllProducts(mapped);
       } else {
         setAllProducts([]);
       }

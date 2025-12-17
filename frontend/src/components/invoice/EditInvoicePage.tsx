@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import axios from 'axios';
 import { Picker } from '@react-native-picker/picker';
 import {
   colors,
@@ -19,7 +18,7 @@ import {
   typography,
   commonStyles,
 } from '../../theme/theme';
-import { API_BASE_URL, API_FALLBACK_URLS } from '../../config/api';
+import { getInvoices } from '../../services/OfflineService';
 
 // const API_BASE_URL = 'https://mkqfdpqq-3000.inc1.devtunnels.ms'; // Now using centralized config
 
@@ -50,6 +49,7 @@ const EditInvoicePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handleSearch = async () => {
+    // Basic validation
     if (searchType !== 'date' && !searchQuery.trim()) {
       Alert.alert('Error', 'Please enter a search term');
       return;
@@ -60,91 +60,51 @@ const EditInvoicePage: React.FC = () => {
         Alert.alert('Error', 'Please enter both date from and date to');
         return;
       }
-
-      // Validate date format
-      const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-      if (!datePattern.test(dateFrom) || !datePattern.test(dateTo)) {
-        Alert.alert(
-          'Error',
-          'Please use date format YYYY-MM-DD (e.g., 2025-11-25)',
-        );
-        return;
-      }
     }
 
     setLoading(true);
 
-    const params: any = {};
-
-    switch (searchType) {
-      case 'id':
-        params.invoiceId = searchQuery;
-        break;
-      case 'phone':
-        params.phone = searchQuery;
-        break;
-      case 'name':
-        params.customerName = searchQuery;
-        break;
-      case 'date':
-        params.dateFrom = dateFrom;
-        params.dateTo = dateTo;
-        break;
-    }
-
     try {
-      const response = await axios.get(`${API_BASE_URL}/invoices/search`, {
-        params,
-        timeout: 5000,
-      });
+      console.log('[EditInvoice] Searching offline invoices...');
+      const response = await getInvoices(); // Fetch all and filter client-side for simplicity
 
-      if (response && response.data) {
-        setInvoices(response.data.data);
-        if (response.data.data.length === 0) {
-          Alert.alert('No Results', 'No invoices found matching your search');
+      if (response && response.success && response.data) {
+        let results = response.data;
+        
+        // Filter Logic
+        if (searchType === 'id') {
+           results = results.filter((inv: any) => String(inv.id).includes(searchQuery.trim()));
+        } else if (searchType === 'phone') {
+           results = results.filter((inv: any) => 
+               inv.customer?.phone?.includes(searchQuery.trim()) || inv.customerPhone?.includes(searchQuery.trim())
+           );
+        } else if (searchType === 'name') {
+           const q = searchQuery.toLowerCase().trim();
+           results = results.filter((inv: any) => 
+               (inv.customer?.name?.toLowerCase().includes(q)) || 
+               (inv.customerName?.toLowerCase().includes(q))
+           );
+        } else if (searchType === 'date') {
+             const start = new Date(dateFrom).getTime();
+             const end = new Date(dateTo).getTime();
+             results = results.filter((inv: any) => {
+                 const d = new Date(inv.createdAt).getTime();
+                 return d >= start && d <= end;
+             });
         }
-      }
-    } catch (error: any) {
-      // Try fallback URLs if primary fails
-      let lastError = error;
-      let success = false;
 
-      for (const baseUrl of API_FALLBACK_URLS) {
-        if (baseUrl === API_BASE_URL) continue;
+        setInvoices(results);
 
-        try {
-          const response = await axios.get(`${baseUrl}/invoices/search`, {
-            params,
-            timeout: 5000,
-          });
-
-          if (response && response.data) {
-            setInvoices(response.data.data);
-            if (response.data.data.length === 0) {
-              Alert.alert(
-                'No Results',
-                'No invoices found matching your search',
-              );
-            }
-            success = true;
-            break;
-          }
-        } catch (fallbackError: any) {
-          lastError = fallbackError;
-          console.warn(`Failed fallback ${baseUrl}:`, fallbackError?.message);
+        if (results.length === 0) {
+            Alert.alert('No Results', 'No invoices found matching your search');
         }
-      }
 
-      if (!success) {
-        console.error(
-          'Search error:',
-          lastError.response?.data || lastError.message,
-        );
-        Alert.alert(
-          'Error',
-          lastError.response?.data?.message || 'Failed to search invoices',
-        );
+      } else {
+        throw new Error(response?.message || 'Failed to fetch invoices');
       }
+    } catch (err: any) {
+      console.error('Search error:', err);
+      Alert.alert('Error', err.message || 'Failed to search invoices');
     } finally {
       setLoading(false);
     }
