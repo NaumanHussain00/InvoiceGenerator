@@ -24,6 +24,7 @@ interface Customer {
   name: string;
   phone: string;
   firm: string;
+  address: string;
   balance: string;
 }
 
@@ -39,6 +40,7 @@ const EditCustomerPage: React.FC = () => {
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editFirm, setEditFirm] = useState('');
+  const [editAddress, setEditAddress] = useState('');
   const [editBalance, setEditBalance] = useState('');
   
   const [modalVisible, setModalVisible] = useState(false);
@@ -91,28 +93,60 @@ const EditCustomerPage: React.FC = () => {
     setEditingCustomer(customer);
     setEditName(customer.name);
     setEditPhone(customer.phone);
-    setEditFirm(customer.firm);
+    setEditFirm(customer.firm || '');
+    setEditAddress(customer.address || '');
     setEditBalance(customer.balance ? customer.balance.toString() : '');
     setModalVisible(true);
+  };
+
+  const validateFields = () => {
+    if (!editName.trim()) {
+      Alert.alert('Validation Error', 'Please enter customer name.');
+      return false;
+    }
+    if (editName.trim().length > 50) {
+      Alert.alert('Validation Error', 'Customer name cannot exceed 50 characters.');
+      return false;
+    }
+
+    if (!editPhone.trim()) {
+      Alert.alert('Validation Error', 'Please enter phone number.');
+      return false;
+    }
+
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(editPhone)) {
+      Alert.alert(
+        'Validation Error',
+        'Please enter a valid 10-digit phone number.',
+      );
+      return false;
+    }
+
+    if (editFirm.trim().length > 50) {
+      Alert.alert('Validation Error', 'Firm name cannot exceed 50 characters.');
+      return false;
+    }
+
+    if (editAddress.trim().length > 50) {
+      Alert.alert('Validation Error', 'Address cannot exceed 50 characters.');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSaveEdit = async () => {
     if (!editingCustomer) return;
 
-    if (!editName.trim()) {
-      Alert.alert('Error', 'Customer name cannot be empty');
-      return;
-    }
-    if (!editPhone.trim()) {
-      Alert.alert('Error', 'Phone number cannot be empty');
-      return;
-    }
+    if (!validateFields()) return;
 
     try {
       const response = await updateCustomer(editingCustomer.id, {
         name: editName.trim(),
         phone: editPhone.trim(),
         firm: editFirm.trim(),
+        address: editAddress.trim(),
         balance: editBalance ? Number(editBalance) : 0,
       });
 
@@ -124,6 +158,7 @@ const EditCustomerPage: React.FC = () => {
               name: editName.trim(),
               phone: editPhone.trim(),
               firm: editFirm.trim(),
+              address: editAddress.trim(),
               balance: editBalance
           } : c,
         );
@@ -246,29 +281,53 @@ const EditCustomerPage: React.FC = () => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Customer</Text>
 
-            <Text style={styles.label}>Name</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Name</Text>
+              <Text style={styles.charCount}>{50 - (editName?.length || 0)} chars left</Text>
+            </View>
             <TextInput
               style={styles.input}
               value={editName}
               onChangeText={setEditName}
               placeholder="Enter name"
+              maxLength={50}
             />
 
-            <Text style={styles.label}>Phone</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Phone</Text>
+              <Text style={styles.charCount}>{10 - (editPhone?.length || 0)} digits left</Text>
+            </View>
             <TextInput
               style={styles.input}
               value={editPhone}
               onChangeText={setEditPhone}
               placeholder="Enter phone"
               keyboardType="phone-pad"
+              maxLength={10}
             />
 
-            <Text style={styles.label}>Firm</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Firm</Text>
+              <Text style={styles.charCount}>{50 - (editFirm?.length || 0)} chars left</Text>
+            </View>
             <TextInput
               style={styles.input}
               value={editFirm}
               onChangeText={setEditFirm}
               placeholder="Enter firm name"
+              maxLength={50}
+            />
+
+            <View style={styles.labelRow}>
+               <Text style={styles.label}>Address</Text>
+               <Text style={styles.charCount}>{50 - (editAddress?.length || 0)} chars left</Text>
+            </View>
+            <TextInput
+              style={styles.input}
+              value={editAddress}
+              onChangeText={setEditAddress}
+              placeholder="Enter address"
+              maxLength={50}
             />
 
             <Text style={styles.label}>Balance</Text>
@@ -418,6 +477,16 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginBottom: spacing.lg,
     textAlign: 'center',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  charCount: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
   },
   label: {
     fontSize: typography.fontSize.base,
