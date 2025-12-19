@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { generateInvoiceHtml, generatePrintHtml } from '../../services/OfflineService';
+import { generateInvoiceHtml, generatePrintHtml, generatePDF } from '../../services/OfflineService';
 import RNPrint from 'react-native-print';
+import Share from 'react-native-share';
 import { colors, spacing, typography } from '../../theme/theme';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -68,17 +69,45 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
     setLoading(false);
   };
 
+  const handleDownload = async () => {
+    if (!htmlContent) return;
+    try {
+      Alert.alert('Generating PDF', 'Please wait...');
+      
+      // Generate normal PDF for download
+      const pdfPath = await generatePDF(htmlContent, `invoice_${invoiceId}`, false);
+      
+      // Share the PDF
+      await Share.open({
+        url: `file://${pdfPath}`,
+        type: 'application/pdf',
+        title: `Invoice ${invoiceId}`,
+      });
+    } catch (error: any) {
+      console.error('Download error:', error);
+      Alert.alert('Error', error.message || 'Failed to download invoice PDF.');
+    }
+  };
+
   const handlePrint = async () => {
     if (!htmlContent) return;
     try {
-      // Generate print-specific HTML (A4 portrait with horizontal A5 invoices)
-      const printHtml = generatePrintHtml(htmlContent);
+      Alert.alert('Generating PDF', 'Please wait...');
       
-      // Print directly with HTML
-      await RNPrint.print({ html: printHtml });
-    } catch (error) {
+      // Generate PDF with print layout (horizontal A5)
+      const pdfPath = await generatePDF(htmlContent, `invoice_${invoiceId}_print`, true);
+      
+      // Print the PDF
+      await RNPrint.print({ filePath: pdfPath });
+    } catch (error: any) {
       console.error('Print error:', error);
-      Alert.alert('Error', 'Failed to print invoice.');
+      // Fallback to HTML printing
+      try {
+        const printHtml = generatePrintHtml(htmlContent);
+        await RNPrint.print({ html: printHtml });
+      } catch (fallbackError) {
+        Alert.alert('Error', error.message || 'Failed to print invoice.');
+      }
     }
   };
 
@@ -139,9 +168,14 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Invoice #{invoiceId}</Text>
-        <TouchableOpacity onPress={handlePrint} style={styles.printButton}>
-          <Text style={styles.printButtonText}>🖨️ Print</Text>
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity onPress={handleDownload} style={styles.downloadButton}>
+            <Text style={styles.actionButtonText}>📥 Download</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handlePrint} style={styles.printButton}>
+            <Text style={styles.actionButtonText}>🖨️ Print</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <WebView
         originWhitelist={['*']}
@@ -216,14 +250,24 @@ const styles = StyleSheet.create({
   webview: {
     flex: 1,
   },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  downloadButton: {
+    padding: spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    marginRight: spacing.xs,
+  },
   printButton: {
     padding: spacing.xs,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 8,
   },
-  printButtonText: {
+  actionButtonText: {
     color: colors.textInverse,
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.semibold,
   },
 });

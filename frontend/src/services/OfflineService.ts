@@ -617,6 +617,43 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
  }
 };
 
+// Generate PDF from HTML
+export const generatePDF = async (htmlContent: string, fileName: string, isPrintLayout: boolean = false): Promise<string> => {
+  try {
+    // Use print layout if specified
+    const htmlToConvert = isPrintLayout ? generatePrintHtml(htmlContent) : htmlContent;
+    
+    // Dynamic import to avoid issues if library not linked
+    let RNHTMLtoPDF;
+    try {
+      RNHTMLtoPDF = require('react-native-html-to-pdf');
+    } catch (e) {
+      throw new Error('PDF library not available. Please rebuild the app.');
+    }
+    
+    const convert = RNHTMLtoPDF.default || RNHTMLtoPDF;
+    
+    if (!convert || !convert.convert) {
+      throw new Error('PDF library not properly initialized');
+    }
+    
+    const options = {
+      html: htmlToConvert,
+      fileName: fileName,
+      directory: 'Documents',
+      base64: false,
+      width: 210, // A4 width in mm
+      height: 297, // A4 height in mm
+    };
+    
+    const file = await convert.convert(options);
+    return file.filePath;
+  } catch (error: any) {
+    console.error('PDF generation error:', error);
+    throw new Error(`Failed to generate PDF: ${error.message}`);
+  }
+};
+
 // Transform HTML for print (A4 portrait with horizontal A5 invoices stacked)
 export const generatePrintHtml = (htmlContent: string): string => {
   // Extract the invoice-box content from the original HTML

@@ -15,7 +15,8 @@ import CustomerSection from './customerSection/CustomerSection';
 import ProductSection from './productSection/ProductSection';
 import { WebView } from 'react-native-webview';
 import RNPrint from 'react-native-print';
-import { generatePrintHtml } from '../../../../services/OfflineService';
+import Share from 'react-native-share';
+import { generatePrintHtml, generatePDF } from '../../../../services/OfflineService';
 
 import TaxSection from './taxSection/TaxSection';
 import DiscountSection from './discountSection/DiscountSection';
@@ -237,23 +238,48 @@ const InvoiceForm: React.FC = () => {
             >
               <Text style={styles.closeButtonText}>✕ Close</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.printButton}
-              onPress={async () => {
-                try {
-                  // Generate print-specific HTML (A4 portrait with horizontal A5 invoices)
-                  const printHtml = generatePrintHtml(htmlContent);
-                  
-                  // Print directly with HTML
-                  await RNPrint.print({ html: printHtml });
-                } catch (error) {
-                  console.error('Print Error:', error);
-                  Alert.alert('Error', 'Failed to print invoice');
-                }
-              }}
-            >
-              <Text style={styles.printButtonText}>🖨️ Print</Text>
-            </TouchableOpacity>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={styles.downloadButton}
+                onPress={async () => {
+                  try {
+                    Alert.alert('Generating PDF', 'Please wait...');
+                    const pdfPath = await generatePDF(htmlContent, `invoice_${invoiceData.invoiceId || 'preview'}`, false);
+                    await Share.open({
+                      url: `file://${pdfPath}`,
+                      type: 'application/pdf',
+                      title: `Invoice ${invoiceData.invoiceId || 'Preview'}`,
+                    });
+                  } catch (error: any) {
+                    console.error('Download Error:', error);
+                    Alert.alert('Error', error.message || 'Failed to download invoice PDF');
+                  }
+                }}
+              >
+                <Text style={styles.actionButtonText}>📥 Download</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.printButton}
+                onPress={async () => {
+                  try {
+                    Alert.alert('Generating PDF', 'Please wait...');
+                    const pdfPath = await generatePDF(htmlContent, `invoice_${invoiceData.invoiceId || 'preview'}_print`, true);
+                    await RNPrint.print({ filePath: pdfPath });
+                  } catch (error: any) {
+                    console.error('Print Error:', error);
+                    // Fallback to HTML printing
+                    try {
+                      const printHtml = generatePrintHtml(htmlContent);
+                      await RNPrint.print({ html: printHtml });
+                    } catch (fallbackError) {
+                      Alert.alert('Error', error.message || 'Failed to print invoice');
+                    }
+                  }
+                }}
+              >
+                <Text style={styles.actionButtonText}>🖨️ Print</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <WebView
             originWhitelist={['*']}
@@ -517,15 +543,26 @@ const styles = StyleSheet.create({
     fontSize: scale(14),
     fontWeight: '600',
   },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: scale(8),
+  },
+  downloadButton: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(8),
+    borderRadius: scale(6),
+    marginRight: scale(4),
+  },
   printButton: {
     backgroundColor: '#3b82f6',
-    paddingHorizontal: scale(16),
+    paddingHorizontal: scale(12),
     paddingVertical: scale(8),
     borderRadius: scale(6),
   },
-  printButtonText: {
+  actionButtonText: {
     color: '#fff',
-    fontSize: scale(14),
+    fontSize: scale(12),
     fontWeight: '700',
   },
 });
