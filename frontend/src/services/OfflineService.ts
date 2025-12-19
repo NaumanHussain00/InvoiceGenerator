@@ -687,18 +687,22 @@ export const generatePrintHtml = (htmlContent: string): string => {
       .invoice-box {
         width: 148mm; /* A5 width */
         height: 210mm; /* A5 height */
-        padding: 12mm;
+        padding: 15mm;
         box-sizing: border-box;
         background: white;
-        font-size: 11px;
-        line-height: 1.3;
-        transform: rotate(90deg) scale(0.55);
+        font-size: 12px;
+        line-height: 1.4;
+        transform: rotate(90deg) scale(0.8);
         transform-origin: center center;
         position: absolute;
         top: 50%;
         left: 50%;
         margin-top: -105mm; /* Half of rotated height */
         margin-left: -74mm; /* Half of rotated width */
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
       }
       .title {
         font-size: 45px;
@@ -805,13 +809,16 @@ export const generatePrintHtml = (htmlContent: string): string => {
         .invoice-box {
           width: 148mm !important;
           height: 210mm !important;
-          transform: rotate(90deg) scale(0.55) !important;
+          transform: rotate(90deg) scale(0.8) !important;
           transform-origin: center center !important;
           position: absolute !important;
           top: 50% !important;
           left: 50% !important;
           margin-top: -105mm !important;
           margin-left: -74mm !important;
+          -webkit-font-smoothing: antialiased !important;
+          -moz-osx-font-smoothing: grayscale !important;
+          image-rendering: -webkit-optimize-contrast !important;
         }
       }
     </style>
