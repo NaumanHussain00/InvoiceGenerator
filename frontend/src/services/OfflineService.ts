@@ -686,38 +686,38 @@ export const generatePrintHtml = (htmlContent: string): string => {
         border-bottom: none;
       }
       .invoice-box {
-        width: 210mm; /* Rotated A5 width (original A5 height) */
-        height: 148mm; /* Rotated A5 height (original A5 width) */
-        padding: 10mm;
+        width: 190mm; /* Slightly smaller than A5 rotated width */
+        height: 128mm; /* Slightly smaller than A5 rotated height */
+        padding: 8mm;
         box-sizing: border-box;
         background: white;
-        font-size: 11px;
+        font-size: 10px;
         line-height: 1.3;
         transform: rotate(90deg);
         transform-origin: center center;
         position: relative;
       }
       .title {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: bold;
-        margin-bottom: 6px;
+        margin-bottom: 5px;
       }
       .header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
       }
       .company-details {
         text-align: right;
-        line-height: 14px;
-        font-size: 10px;
+        line-height: 12px;
+        font-size: 9px;
       }
       .details {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 12px;
-        font-size: 10px;
+        margin-bottom: 10px;
+        font-size: 9px;
       }
       .details div {
         width: 48%;
@@ -725,20 +725,20 @@ export const generatePrintHtml = (htmlContent: string): string => {
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 12px;
+        margin-top: 10px;
         table-layout: fixed;
-        font-size: 9px;
+        font-size: 8px;
       }
       table th {
         border-bottom: 2px solid #4B00FF;
         text-align: left;
-        padding: 6px 3px;
+        padding: 5px 3px;
         color: #4B00FF;
         text-transform: uppercase;
-        font-size: 9px;
+        font-size: 8px;
       }
       table td {
-        padding: 5px 3px;
+        padding: 4px 3px;
         border-bottom: 1px solid #eee;
       }
       colgroup col:nth-child(1) { width: 50%; }
@@ -746,19 +746,19 @@ export const generatePrintHtml = (htmlContent: string): string => {
       colgroup col:nth-child(3) { width: 10%; }
       colgroup col:nth-child(4) { width: 25%; }
       .totals {
-        margin-top: 15px;
+        margin-top: 12px;
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 9px;
+        font-size: 8px;
       }
       .totals td {
-        padding: 5px 0;
+        padding: 4px 0;
         border-bottom: 1px solid #eee;
       }
       .totals .total {
         font-weight: bold;
-        font-size: 11px;
+        font-size: 10px;
         border-top: 2px solid #000;
       }
       .highlight {
@@ -806,8 +806,8 @@ export const generatePrintHtml = (htmlContent: string): string => {
           justify-content: center !important;
         }
         .invoice-box {
-          width: 210mm !important;
-          height: 148mm !important;
+          width: 190mm !important;
+          height: 128mm !important;
           transform: rotate(90deg) !important;
           transform-origin: center center !important;
         }
