@@ -632,26 +632,52 @@ export const generatePrintHtml = (htmlContent: string): string => {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Invoice - Print</title>
+    <script>
+      // Force landscape orientation
+      (function() {
+        if (window.matchMedia) {
+          var mediaQuery = window.matchMedia('print');
+          mediaQuery.addListener(function(mq) {
+            if (mq.matches) {
+              document.body.style.width = '297mm';
+              document.body.style.height = '210mm';
+              document.body.style.transform = 'rotate(0deg)';
+            }
+          });
+        }
+        window.onbeforeprint = function() {
+          document.body.style.width = '297mm';
+          document.body.style.height = '210mm';
+        };
+      })();
+    </script>
     <style>
       @page {
-        size: 297mm 210mm; /* A4 landscape - explicit dimensions */
+        size: landscape;
+        size: 297mm 210mm;
         margin: 0;
-        orientation: landscape;
       }
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-      html, body {
+      html {
         width: 297mm;
         height: 210mm;
         margin: 0;
         padding: 0;
+      }
+      body {
+        width: 297mm !important;
+        height: 210mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         color: #222;
         background: white;
         overflow: hidden;
+        transform: rotate(0deg);
       }
       .print-sheet {
         width: 297mm; /* A4 landscape width */
@@ -756,18 +782,31 @@ export const generatePrintHtml = (htmlContent: string): string => {
       }
       @media print {
         @page {
-          size: 297mm 210mm landscape;
+          size: landscape;
+          size: 297mm 210mm;
           margin: 0;
         }
-        html, body {
-          width: 297mm;
-          height: 210mm;
+        html {
+          width: 297mm !important;
+          height: 210mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        body {
+          width: 297mm !important;
+          height: 210mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          transform: rotate(0deg) !important;
         }
         .print-sheet {
-          display: flex;
+          display: flex !important;
+          flex-direction: row !important;
           page-break-after: auto;
-          width: 297mm;
-          height: 210mm;
+          width: 297mm !important;
+          height: 210mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
         .print-sheet:nth-child(2n) {
           page-break-after: always;
@@ -775,8 +814,19 @@ export const generatePrintHtml = (htmlContent: string): string => {
         .a5-page {
           page-break-inside: avoid;
           border-right: 1px solid #ddd;
-          width: 148.5mm;
-          height: 210mm;
+          width: 148.5mm !important;
+          height: 210mm !important;
+          flex-shrink: 0;
+        }
+      }
+      
+      /* Fallback: If page is still portrait, rotate the entire content */
+      @media print and (orientation: portrait) {
+        body {
+          transform: rotate(90deg) !important;
+          transform-origin: center center !important;
+          width: 210mm !important;
+          height: 297mm !important;
         }
       }
     </style>
