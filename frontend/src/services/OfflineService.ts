@@ -625,7 +625,6 @@ export const generatePrintHtml = (htmlContent: string): string => {
 
   // A4 landscape: 297mm × 210mm
   // A5 portrait: 148mm × 210mm (fits 2 side-by-side on A4 landscape)
-  // Scale: A5 usable width (148mm - 20mm padding) / A4 usable width (210mm - 40mm padding) = 128/170 ≈ 0.75
   const printHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -635,20 +634,24 @@ export const generatePrintHtml = (htmlContent: string): string => {
     <title>Invoice - Print</title>
     <style>
       @page {
-        size: A4 landscape;
+        size: 297mm 210mm; /* A4 landscape - explicit dimensions */
         margin: 0;
+        orientation: landscape;
       }
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-      body {
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        color: #222;
+      html, body {
+        width: 297mm;
+        height: 210mm;
         margin: 0;
         padding: 0;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #222;
         background: white;
+        overflow: hidden;
       }
       .print-sheet {
         width: 297mm; /* A4 landscape width */
@@ -663,10 +666,10 @@ export const generatePrintHtml = (htmlContent: string): string => {
       .a5-page {
         width: 148.5mm; /* Exactly half of A4 landscape width (297mm / 2) */
         height: 210mm; /* A5 height matches A4 landscape height */
-        padding: 8mm;
+        padding: 5mm;
         display: flex;
         align-items: flex-start;
-        justify-content: center;
+        justify-content: flex-start;
         page-break-inside: avoid;
         border-right: 1px solid #ddd;
         overflow: hidden;
@@ -675,33 +678,35 @@ export const generatePrintHtml = (htmlContent: string): string => {
         border-right: none;
       }
       .invoice-box {
-        width: 132.5mm; /* A5 usable width: 148.5mm - 16mm padding */
-        min-height: 194mm; /* A5 usable height: 210mm - 16mm padding */
-        padding: 15mm;
+        width: 138.5mm; /* A5 width (148.5mm) - 10mm total padding */
+        min-height: 200mm; /* A5 height (210mm) - 10mm total padding */
+        padding: 12mm;
         box-sizing: border-box;
         background: white;
+        font-size: 12px;
+        line-height: 1.4;
       }
       .title {
-        font-size: 32px;
+        font-size: 36px;
         font-weight: bold;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
       }
       .header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
       }
       .company-details {
         text-align: right;
-        line-height: 14px;
-        font-size: 11px;
+        line-height: 16px;
+        font-size: 12px;
       }
       .details {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 15px;
-        font-size: 11px;
+        margin-bottom: 18px;
+        font-size: 12px;
       }
       .details div {
         width: 48%;
@@ -709,20 +714,20 @@ export const generatePrintHtml = (htmlContent: string): string => {
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 15px;
+        margin-top: 18px;
         table-layout: fixed;
-        font-size: 10px;
+        font-size: 11px;
       }
       table th {
         border-bottom: 2px solid #4B00FF;
         text-align: left;
-        padding: 7px 4px;
+        padding: 8px 5px;
         color: #4B00FF;
         text-transform: uppercase;
-        font-size: 10px;
+        font-size: 11px;
       }
       table td {
-        padding: 6px 4px;
+        padding: 7px 5px;
         border-bottom: 1px solid #eee;
       }
       colgroup col:nth-child(1) { width: 50%; }
@@ -730,19 +735,19 @@ export const generatePrintHtml = (htmlContent: string): string => {
       colgroup col:nth-child(3) { width: 10%; }
       colgroup col:nth-child(4) { width: 25%; }
       .totals {
-        margin-top: 20px;
+        margin-top: 25px;
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 10px;
+        font-size: 11px;
       }
       .totals td {
-        padding: 6px 0;
+        padding: 7px 0;
         border-bottom: 1px solid #eee;
       }
       .totals .total {
         font-weight: bold;
-        font-size: 12px;
+        font-size: 13px;
         border-top: 2px solid #000;
       }
       .highlight {
@@ -750,9 +755,19 @@ export const generatePrintHtml = (htmlContent: string): string => {
         font-weight: bold;
       }
       @media print {
+        @page {
+          size: 297mm 210mm landscape;
+          margin: 0;
+        }
+        html, body {
+          width: 297mm;
+          height: 210mm;
+        }
         .print-sheet {
           display: flex;
           page-break-after: auto;
+          width: 297mm;
+          height: 210mm;
         }
         .print-sheet:nth-child(2n) {
           page-break-after: always;
@@ -760,10 +775,8 @@ export const generatePrintHtml = (htmlContent: string): string => {
         .a5-page {
           page-break-inside: avoid;
           border-right: 1px solid #ddd;
-        }
-        body {
-          margin: 0;
-          padding: 0;
+          width: 148.5mm;
+          height: 210mm;
         }
       }
     </style>
