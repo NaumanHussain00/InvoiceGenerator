@@ -674,9 +674,8 @@ export const generatePrintHtml = (htmlContent: string): string => {
       .a5-invoice-container {
         width: 210mm; /* Full A4 width */
         height: 148mm; /* Rotated A5 height (148mm) */
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: block;
+        position: relative;
         page-break-inside: avoid;
         border-bottom: 1px solid #ddd;
         overflow: hidden;
@@ -688,14 +687,18 @@ export const generatePrintHtml = (htmlContent: string): string => {
       .invoice-box {
         width: 148mm; /* A5 width */
         height: 210mm; /* A5 height */
-        padding: 15mm;
+        padding: 12mm;
         box-sizing: border-box;
         background: white;
-        font-size: 12px;
-        line-height: 1.4;
-        transform: rotate(90deg) scale(0.65);
+        font-size: 11px;
+        line-height: 1.3;
+        transform: rotate(90deg) scale(0.55);
         transform-origin: center center;
-        position: relative;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-top: -105mm; /* Half of rotated height */
+        margin-left: -74mm; /* Half of rotated width */
       }
       .title {
         font-size: 45px;
@@ -796,16 +799,19 @@ export const generatePrintHtml = (htmlContent: string): string => {
           border-bottom: 1px solid #ddd;
           width: 210mm !important;
           height: 148mm !important;
-          flex-shrink: 0;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
+          position: relative !important;
+          overflow: hidden !important;
         }
         .invoice-box {
           width: 148mm !important;
           height: 210mm !important;
-          transform: rotate(90deg) scale(0.65) !important;
+          transform: rotate(90deg) scale(0.55) !important;
           transform-origin: center center !important;
+          position: absolute !important;
+          top: 50% !important;
+          left: 50% !important;
+          margin-top: -105mm !important;
+          margin-left: -74mm !important;
         }
       }
     </style>

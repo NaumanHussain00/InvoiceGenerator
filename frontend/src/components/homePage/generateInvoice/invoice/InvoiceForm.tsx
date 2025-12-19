@@ -15,7 +15,6 @@ import CustomerSection from './customerSection/CustomerSection';
 import ProductSection from './productSection/ProductSection';
 import { WebView } from 'react-native-webview';
 import RNPrint from 'react-native-print';
-import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import { generatePrintHtml } from '../../../../services/OfflineService';
 
 import TaxSection from './taxSection/TaxSection';
@@ -245,29 +244,7 @@ const InvoiceForm: React.FC = () => {
                   // Generate print-specific HTML (A4 portrait with horizontal A5 invoices)
                   const printHtml = generatePrintHtml(htmlContent);
                   
-                  // Try to generate PDF first, fallback to direct HTML printing
-                  if (RNHTMLtoPDF && RNHTMLtoPDF.convert) {
-                    try {
-                      const options = {
-                        html: printHtml,
-                        fileName: `invoice_${invoiceData.invoiceId || 'preview'}`,
-                        directory: 'Documents',
-                        base64: false,
-                        width: 210, // A4 width in mm
-                        height: 297, // A4 height in mm
-                      };
-                      
-                      const file = await RNHTMLtoPDF.convert(options);
-                      
-                      // Print the PDF
-                      await RNPrint.print({ filePath: file.filePath });
-                      return;
-                    } catch (pdfError) {
-                      console.warn('PDF generation failed, falling back to HTML print:', pdfError);
-                    }
-                  }
-                  
-                  // Fallback to direct HTML printing
+                  // Print directly with HTML
                   await RNPrint.print({ html: printHtml });
                 } catch (error) {
                   console.error('Print Error:', error);
