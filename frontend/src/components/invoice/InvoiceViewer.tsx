@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { generateInvoiceHtml } from '../../services/OfflineService';
+import { generateInvoiceHtml, generatePrintHtml } from '../../services/OfflineService';
 import RNPrint from 'react-native-print';
 import { colors, spacing, typography } from '../../theme/theme';
 import { RouteProp } from '@react-navigation/native';
@@ -71,7 +71,9 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
   const handlePrint = async () => {
     if (!htmlContent) return;
     try {
-      await RNPrint.print({ html: htmlContent });
+      // Generate print-specific HTML (landscape, 2 pages per sheet)
+      const printHtml = generatePrintHtml(htmlContent);
+      await RNPrint.print({ html: printHtml });
     } catch (error) {
       console.error('Print error:', error);
       Alert.alert('Error', 'Failed to print invoice.');

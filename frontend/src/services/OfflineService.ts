@@ -617,6 +617,163 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
  }
 };
 
+// Transform HTML for print (landscape, 2 pages per sheet)
+export const generatePrintHtml = (htmlContent: string): string => {
+  // Extract the invoice-box content from the original HTML
+  const invoiceBoxMatch = htmlContent.match(/<div[^>]*class="invoice-box"[^>]*>([\s\S]*?)<\/div>\s*(?=<\/body>|$)/i);
+  const invoiceContent = invoiceBoxMatch ? invoiceBoxMatch[1] : htmlContent.replace(/<body[^>]*>|<\/body>/gi, '');
+
+  // Create print-specific HTML with landscape orientation and 2 pages per sheet
+  // This uses CSS to scale the invoice to 50% width and arranges pages side-by-side
+  const printHtml = `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice - Print</title>
+    <style>
+      @page {
+        size: A4 landscape;
+        margin: 0;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #222;
+        margin: 0;
+        padding: 0;
+        background: white;
+      }
+      .print-container {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .invoice-half {
+        width: 50%;
+        min-height: 210mm;
+        padding: 5mm;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        page-break-inside: avoid;
+        border-right: 1px solid #ddd;
+      }
+      .invoice-half:nth-child(even) {
+        border-right: none;
+      }
+      .invoice-box {
+        width: 210mm; /* Original A4 width */
+        min-height: 297mm; /* Original A4 height */
+        padding: 20mm;
+        box-sizing: border-box;
+        background: white;
+        transform: scale(0.48);
+        transform-origin: top center;
+        margin: 0 auto;
+      }
+      .title {
+        font-size: 45px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 30px;
+      }
+      .company-details {
+        text-align: right;
+        line-height: 18px;
+      }
+      .details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .details div {
+        width: 48%;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        table-layout: fixed;
+      }
+      table th {
+        border-bottom: 2px solid #4B00FF;
+        text-align: left;
+        padding: 10px 5px;
+        color: #4B00FF;
+        text-transform: uppercase;
+        font-size: 13px;
+      }
+      table td {
+        padding: 8px 5px;
+        border-bottom: 1px solid #eee;
+      }
+      colgroup col:nth-child(1) { width: 50%; }
+      colgroup col:nth-child(2) { width: 15%; }
+      colgroup col:nth-child(3) { width: 10%; }
+      colgroup col:nth-child(4) { width: 25%; }
+      .totals {
+        margin-top: 30px;
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .totals td {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .totals .total {
+        font-weight: bold;
+        font-size: 16px;
+        border-top: 2px solid #000;
+      }
+      .highlight {
+        color: #4B00FF;
+        font-weight: bold;
+      }
+      @media print {
+        .print-container {
+          display: flex;
+        }
+        .invoice-half {
+          page-break-inside: avoid;
+          border-right: 1px solid #ddd;
+        }
+        .invoice-half:nth-child(odd) {
+          page-break-after: always;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="print-container">
+      <div class="invoice-half">
+        <div class="invoice-box">
+          ${invoiceContent}
+        </div>
+      </div>
+    </div>
+  </body>
+</html>`;
+
+  return printHtml;
+};
+
 export const getInvoices = async () => {
      try {
         const results = db.execute(`

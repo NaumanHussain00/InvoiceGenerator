@@ -15,6 +15,7 @@ import CustomerSection from './customerSection/CustomerSection';
 import ProductSection from './productSection/ProductSection';
 import { WebView } from 'react-native-webview';
 import RNPrint from 'react-native-print';
+import { generatePrintHtml } from '../../../../services/OfflineService';
 
 import TaxSection from './taxSection/TaxSection';
 import DiscountSection from './discountSection/DiscountSection';
@@ -240,7 +241,9 @@ const InvoiceForm: React.FC = () => {
               style={styles.printButton}
               onPress={async () => {
                 try {
-                  await RNPrint.print({ html: htmlContent });
+                  // Generate print-specific HTML (landscape, 2 pages per sheet)
+                  const printHtml = generatePrintHtml(htmlContent);
+                  await RNPrint.print({ html: printHtml });
                 } catch (error) {
                   console.error('Print Error:', error);
                   Alert.alert('Error', 'Failed to print invoice');
