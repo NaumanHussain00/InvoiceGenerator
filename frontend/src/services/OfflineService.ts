@@ -617,14 +617,16 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
  }
 };
 
-// Transform HTML for print (A4 landscape with A5 portrait pages side-by-side)
+// Transform HTML for print (A4 portrait with horizontal A5 invoices stacked)
 export const generatePrintHtml = (htmlContent: string): string => {
   // Extract the invoice-box content from the original HTML
   const invoiceBoxMatch = htmlContent.match(/<div[^>]*class="invoice-box"[^>]*>([\s\S]*?)<\/div>\s*(?=<\/body>|$)/i);
   const invoiceContent = invoiceBoxMatch ? invoiceBoxMatch[1] : htmlContent.replace(/<body[^>]*>|<\/body>/gi, '');
 
-  // A4 landscape: 297mm × 210mm
-  // A5 portrait: 148mm × 210mm (fits 2 side-by-side on A4 landscape)
+  // A4 portrait: 210mm × 297mm
+  // A5 portrait: 148mm × 210mm
+  // When rotated 90° (horizontal): 210mm × 148mm
+  // Two rotated A5 pages fit: 210mm × 296mm (top and bottom)
   const printHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -632,29 +634,10 @@ export const generatePrintHtml = (htmlContent: string): string => {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Invoice - Print</title>
-    <script>
-      // Force landscape orientation
-      (function() {
-        if (window.matchMedia) {
-          var mediaQuery = window.matchMedia('print');
-          mediaQuery.addListener(function(mq) {
-            if (mq.matches) {
-              document.body.style.width = '297mm';
-              document.body.style.height = '210mm';
-              document.body.style.transform = 'rotate(0deg)';
-            }
-          });
-        }
-        window.onbeforeprint = function() {
-          document.body.style.width = '297mm';
-          document.body.style.height = '210mm';
-        };
-      })();
-    </script>
     <style>
       @page {
-        size: landscape;
-        size: 297mm 210mm;
+        size: A4;
+        size: 210mm 297mm;
         margin: 0;
       }
       * {
@@ -663,78 +646,78 @@ export const generatePrintHtml = (htmlContent: string): string => {
         box-sizing: border-box;
       }
       html {
-        width: 297mm;
-        height: 210mm;
+        width: 210mm;
+        height: 297mm;
         margin: 0;
         padding: 0;
       }
       body {
-        width: 297mm !important;
-        height: 210mm !important;
+        width: 210mm !important;
+        height: 297mm !important;
         margin: 0 !important;
         padding: 0 !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         color: #222;
         background: white;
         overflow: hidden;
-        transform: rotate(0deg);
       }
       .print-sheet {
-        width: 297mm; /* A4 landscape width */
-        height: 210mm; /* A4 landscape height */
+        width: 210mm; /* A4 portrait width */
+        height: 297mm; /* A4 portrait height */
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
         page-break-after: auto;
       }
       .print-sheet:nth-child(2n) {
         page-break-after: always;
       }
-      .a5-page {
-        width: 148.5mm; /* Exactly half of A4 landscape width (297mm / 2) */
-        height: 210mm; /* A5 height matches A4 landscape height */
-        padding: 0;
+      .a5-invoice-container {
+        width: 210mm; /* Full A4 width */
+        height: 148mm; /* Rotated A5 height (148mm) */
         display: flex;
         align-items: center;
         justify-content: center;
         page-break-inside: avoid;
-        border-right: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
         overflow: hidden;
+        padding: 0;
       }
-      .a5-page:last-child {
-        border-right: none;
+      .a5-invoice-container:last-child {
+        border-bottom: none;
       }
       .invoice-box {
-        width: 148mm; /* Full A5 width */
-        min-height: 210mm; /* Full A5 height */
-        max-height: 210mm;
-        padding: 15mm;
+        width: 210mm; /* Rotated A5 width (original A5 height) */
+        height: 148mm; /* Rotated A5 height (original A5 width) */
+        padding: 10mm;
         box-sizing: border-box;
         background: white;
-        font-size: 12px;
-        line-height: 1.4;
-        margin: 0 auto;
+        font-size: 11px;
+        line-height: 1.3;
+        transform: rotate(90deg);
+        transform-origin: center center;
+        position: relative;
       }
       .title {
-        font-size: 32px;
+        font-size: 28px;
         font-weight: bold;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
       }
       .header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
       }
       .company-details {
         text-align: right;
-        line-height: 15px;
-        font-size: 11px;
+        line-height: 14px;
+        font-size: 10px;
       }
       .details {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 15px;
-        font-size: 11px;
+        margin-bottom: 12px;
+        font-size: 10px;
       }
       .details div {
         width: 48%;
@@ -742,20 +725,20 @@ export const generatePrintHtml = (htmlContent: string): string => {
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 15px;
+        margin-top: 12px;
         table-layout: fixed;
-        font-size: 10px;
+        font-size: 9px;
       }
       table th {
         border-bottom: 2px solid #4B00FF;
         text-align: left;
-        padding: 7px 4px;
+        padding: 6px 3px;
         color: #4B00FF;
         text-transform: uppercase;
-        font-size: 10px;
+        font-size: 9px;
       }
       table td {
-        padding: 6px 4px;
+        padding: 5px 3px;
         border-bottom: 1px solid #eee;
       }
       colgroup col:nth-child(1) { width: 50%; }
@@ -763,19 +746,19 @@ export const generatePrintHtml = (htmlContent: string): string => {
       colgroup col:nth-child(3) { width: 10%; }
       colgroup col:nth-child(4) { width: 25%; }
       .totals {
-        margin-top: 20px;
+        margin-top: 15px;
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 10px;
+        font-size: 9px;
       }
       .totals td {
-        padding: 6px 0;
+        padding: 5px 0;
         border-bottom: 1px solid #eee;
       }
       .totals .total {
         font-weight: bold;
-        font-size: 12px;
+        font-size: 11px;
         border-top: 2px solid #000;
       }
       .highlight {
@@ -784,71 +767,62 @@ export const generatePrintHtml = (htmlContent: string): string => {
       }
       @media print {
         @page {
-          size: landscape;
-          size: 297mm 210mm;
+          size: A4;
+          size: 210mm 297mm;
           margin: 0;
         }
         html {
-          width: 297mm !important;
-          height: 210mm !important;
+          width: 210mm !important;
+          height: 297mm !important;
           margin: 0 !important;
           padding: 0 !important;
         }
         body {
-          width: 297mm !important;
-          height: 210mm !important;
+          width: 210mm !important;
+          height: 297mm !important;
           margin: 0 !important;
           padding: 0 !important;
-          transform: rotate(0deg) !important;
         }
         .print-sheet {
           display: flex !important;
-          flex-direction: row !important;
+          flex-direction: column !important;
           page-break-after: auto;
-          width: 297mm !important;
-          height: 210mm !important;
+          width: 210mm !important;
+          height: 297mm !important;
           margin: 0 !important;
           padding: 0 !important;
         }
         .print-sheet:nth-child(2n) {
           page-break-after: always;
         }
-        .a5-page {
+        .a5-invoice-container {
           page-break-inside: avoid;
-          border-right: 1px solid #ddd;
-          width: 148.5mm !important;
-          height: 210mm !important;
+          border-bottom: 1px solid #ddd;
+          width: 210mm !important;
+          height: 148mm !important;
           flex-shrink: 0;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
         }
         .invoice-box {
-          width: 148mm !important;
-          max-height: 210mm !important;
-        }
-      }
-      
-      /* Fallback: If page is still portrait, rotate the entire content */
-      @media print and (orientation: portrait) {
-        body {
+          width: 210mm !important;
+          height: 148mm !important;
           transform: rotate(90deg) !important;
           transform-origin: center center !important;
-          width: 210mm !important;
-          height: 297mm !important;
         }
       }
     </style>
   </head>
   <body>
     <div class="print-sheet">
-      <div class="a5-page">
+      <div class="a5-invoice-container">
         <div class="invoice-box">
           ${invoiceContent}
         </div>
       </div>
-      <div class="a5-page">
-        <!-- Second A5 page for next invoice page or empty -->
+      <div class="a5-invoice-container">
+        <!-- Second invoice for next page or empty -->
       </div>
     </div>
   </body>
