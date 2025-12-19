@@ -10,6 +10,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { generateInvoiceHtml, generatePrintHtml } from '../../services/OfflineService';
 import RNPrint from 'react-native-print';
+import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import { colors, spacing, typography } from '../../theme/theme';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -71,9 +72,23 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
   const handlePrint = async () => {
     if (!htmlContent) return;
     try {
-      // Generate print-specific HTML (A4 landscape with A5 portrait pages)
+      // Generate print-specific HTML (A4 portrait with horizontal A5 invoices)
       const printHtml = generatePrintHtml(htmlContent);
-      await RNPrint.print({ html: printHtml });
+      
+      // Generate PDF first
+      const options = {
+        html: printHtml,
+        fileName: `invoice_${invoiceId}`,
+        directory: 'Documents',
+        base64: false,
+        width: 210, // A4 width in mm
+        height: 297, // A4 height in mm
+      };
+      
+      const file = await RNHTMLtoPDF.convert(options);
+      
+      // Print the PDF
+      await RNPrint.print({ filePath: file.filePath });
     } catch (error) {
       console.error('Print error:', error);
       Alert.alert('Error', 'Failed to print invoice.');
