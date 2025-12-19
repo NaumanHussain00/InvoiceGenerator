@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { generateInvoiceHtml, generatePrintHtml, generatePDF } from '../../services/OfflineService';
+import { generateInvoiceHtml, generatePDF } from '../../services/OfflineService';
 import RNPrint from 'react-native-print';
 import Share from 'react-native-share';
 import { colors, spacing, typography } from '../../theme/theme';
@@ -70,12 +70,11 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
   };
 
   const handleDownload = async () => {
-    if (!htmlContent) return;
     try {
       Alert.alert('Generating PDF', 'Please wait...');
       
       // Generate normal PDF for download
-      const pdfPath = await generatePDF(htmlContent, `invoice_${invoiceId}`, false);
+      const pdfPath = await generatePDF(Number(invoiceId), `invoice_${invoiceId}`, false);
       
       // Share the PDF
       await Share.open({
@@ -90,24 +89,17 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
   };
 
   const handlePrint = async () => {
-    if (!htmlContent) return;
     try {
       Alert.alert('Generating PDF', 'Please wait...');
       
       // Generate PDF with print layout (horizontal A5)
-      const pdfPath = await generatePDF(htmlContent, `invoice_${invoiceId}_print`, true);
+      const pdfPath = await generatePDF(Number(invoiceId), `invoice_${invoiceId}_print`, true);
       
       // Print the PDF
       await RNPrint.print({ filePath: pdfPath });
     } catch (error: any) {
       console.error('Print error:', error);
-      // Fallback to HTML printing
-      try {
-        const printHtml = generatePrintHtml(htmlContent);
-        await RNPrint.print({ html: printHtml });
-      } catch (fallbackError) {
-        Alert.alert('Error', error.message || 'Failed to print invoice.');
-      }
+      Alert.alert('Error', error.message || 'Failed to print invoice.');
     }
   };
 

@@ -16,7 +16,7 @@ import ProductSection from './productSection/ProductSection';
 import { WebView } from 'react-native-webview';
 import RNPrint from 'react-native-print';
 import Share from 'react-native-share';
-import { generatePrintHtml, generatePDF } from '../../../../services/OfflineService';
+import { generatePDF } from '../../../../services/OfflineService';
 
 import TaxSection from './taxSection/TaxSection';
 import DiscountSection from './discountSection/DiscountSection';
@@ -242,13 +242,17 @@ const InvoiceForm: React.FC = () => {
               <TouchableOpacity
                 style={styles.downloadButton}
                 onPress={async () => {
+                  if (!invoiceData.invoiceId) {
+                    Alert.alert('Error', 'Please save the invoice first.');
+                    return;
+                  }
                   try {
                     Alert.alert('Generating PDF', 'Please wait...');
-                    const pdfPath = await generatePDF(htmlContent, `invoice_${invoiceData.invoiceId || 'preview'}`, false);
+                    const pdfPath = await generatePDF(Number(invoiceData.invoiceId), `invoice_${invoiceData.invoiceId}`, false);
                     await Share.open({
                       url: `file://${pdfPath}`,
                       type: 'application/pdf',
-                      title: `Invoice ${invoiceData.invoiceId || 'Preview'}`,
+                      title: `Invoice ${invoiceData.invoiceId}`,
                     });
                   } catch (error: any) {
                     console.error('Download Error:', error);
@@ -261,19 +265,17 @@ const InvoiceForm: React.FC = () => {
               <TouchableOpacity
                 style={styles.printButton}
                 onPress={async () => {
+                  if (!invoiceData.invoiceId) {
+                    Alert.alert('Error', 'Please save the invoice first.');
+                    return;
+                  }
                   try {
                     Alert.alert('Generating PDF', 'Please wait...');
-                    const pdfPath = await generatePDF(htmlContent, `invoice_${invoiceData.invoiceId || 'preview'}_print`, true);
+                    const pdfPath = await generatePDF(Number(invoiceData.invoiceId), `invoice_${invoiceData.invoiceId}_print`, true);
                     await RNPrint.print({ filePath: pdfPath });
                   } catch (error: any) {
                     console.error('Print Error:', error);
-                    // Fallback to HTML printing
-                    try {
-                      const printHtml = generatePrintHtml(htmlContent);
-                      await RNPrint.print({ html: printHtml });
-                    } catch (fallbackError) {
-                      Alert.alert('Error', error.message || 'Failed to print invoice');
-                    }
+                    Alert.alert('Error', error.message || 'Failed to print invoice');
                   }
                 }}
               >

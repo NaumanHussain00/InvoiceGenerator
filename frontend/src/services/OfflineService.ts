@@ -617,11 +617,398 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
  }
 };
 
-// Generate PDF from HTML
-export const generatePDF = async (htmlContent: string, fileName: string, isPrintLayout: boolean = false): Promise<string> => {
+// Generate Print HTML directly from invoice data (A4 portrait with horizontal A5 invoices)
+export const generatePrintInvoiceHtml = async (invoiceId: number) => {
   try {
-    // Use print layout if specified
-    const htmlToConvert = isPrintLayout ? generatePrintHtml(htmlContent) : htmlContent;
+    // Fetch full invoice details (same as generateInvoiceHtml)
+    let invoice: any = null;
+    
+    const invRes = db.execute('SELECT * FROM Invoice WHERE id = ?', [invoiceId]);
+    if (invRes.rows?.length === 0) throw new Error('Invoice Not Found');
+    invoice = invRes.rows?.item(0);
+
+    // Line items
+    const lines = db.execute('SELECT * FROM InvoiceLineItem WHERE invoiceId = ?', [invoiceId]);
+    invoice.invoiceLineItems = lines.rows?._array || [];
+
+    // Tax
+    const tax = db.execute('SELECT * FROM TaxLineItem WHERE invoiceId = ?', [invoiceId]);
+    invoice.taxLineItems = tax.rows?._array || [];
+
+    // Packaging
+    const pkg = db.execute('SELECT * FROM PackagingLineItem WHERE invoiceId = ?', [invoiceId]);
+    invoice.packagingLineItems = pkg.rows?._array || [];
+
+    // Transport
+    const tr = db.execute('SELECT * FROM TransportationLineItem WHERE invoiceId = ?', [invoiceId]);
+    invoice.transportationLineItems = tr.rows?._array || [];
+
+    // Formatting Logic
+    const formatCurrency = (value: number) => `₹${value.toFixed(2)}`;
+
+    const productRows = invoice.invoiceLineItems
+      .map((item: any) => {
+        const name = item.productName || "Unnamed Product";
+        const rate = Number(item.productPrice || 0);
+        const qty = item.productQuantity;
+        const total = rate * qty;
+
+        return `
+          <tr>
+            <td>${name}</td>
+            <td>${formatCurrency(rate)}</td>
+            <td>${qty}</td>
+            <td>${formatCurrency(total)}</td>
+          </tr>`;
+      })
+      .join("");
+
+    // Calculate discount
+    let discountPercent: number;
+    let discountAmount: number;
+
+    if ((invoice.amountDiscount || 0) > 0) {
+      discountAmount = invoice.amountDiscount || 0;
+      discountPercent = ((invoice.amountDiscount || 0) / invoice.totalAmount) * 100;
+    } else if ((invoice.percentDiscount || 0) > 0) {
+      discountPercent = invoice.percentDiscount || 0;
+      discountAmount = (invoice.totalAmount * (invoice.percentDiscount || 0)) / 100;
+    } else {
+      discountPercent = 0;
+      discountAmount = 0;
+    }
+
+    const taxRows = invoice.taxLineItems
+      .map((tax: any) => {
+        const subtotalAfterDiscount = invoice.totalAmount - discountAmount;
+        let displayPercent: number;
+        let displayAmount: number;
+
+        if (tax.amount > 0) {
+          displayAmount = tax.amount;
+          displayPercent = (tax.amount / subtotalAfterDiscount) * 100;
+        } else if (tax.percent > 0) {
+          displayPercent = tax.percent;
+          displayAmount = (subtotalAfterDiscount * tax.percent) / 100;
+        } else {
+          displayPercent = 0;
+          displayAmount = 0;
+        }
+
+        const formattedPercent = displayPercent % 1 === 0 ? displayPercent.toFixed(0) : displayPercent.toFixed(2);
+        return `
+        <tr>
+          <td>${tax.name} ${displayPercent > 0 ? `(${formattedPercent}%)` : ''}</td>
+          <td></td><td></td>
+          <td>${formatCurrency(displayAmount)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    const cartonCount = invoice.numberOfCartons ? Number(invoice.numberOfCartons) : 0;
+    const multiplier = cartonCount > 0 ? cartonCount : 1;
+
+    const packagingRows = invoice.packagingLineItems
+      .map((p: any) => {
+        const totalAmount = p.amount * multiplier;
+        const label = `Packaging: ${p.name}`;
+        const details = cartonCount > 0 ? `${formatCurrency(p.amount)} × ${cartonCount}` : '';
+        
+        return `
+        <tr>
+          <td>${label} ${details ? `(${details})` : ''}</td>
+          <td></td><td></td>
+          <td>${formatCurrency(totalAmount)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    const transportationRows = invoice.transportationLineItems
+      .map((t: any) => {
+        const totalAmount = t.amount * multiplier;
+        const label = `Transport: ${t.name}`;
+        const details = cartonCount > 0 ? `${formatCurrency(t.amount)} × ${cartonCount}` : '';
+
+        return `
+        <tr>
+          <td>${label} ${details ? `(${details})` : ''}</td>
+          <td></td><td></td>
+          <td>${formatCurrency(totalAmount)}</td>
+        </tr>`;
+      })
+      .join("");
+
+    const createdAtDate = new Date(invoice.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const totalQuantity = invoice.invoiceLineItems.reduce((sum: number, item: any) => sum + (Number(item.productQuantity) || 0), 0);
+
+    // Generate print layout HTML directly
+    const printHtml = `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice - Print</title>
+    <style>
+      @page {
+        size: A4;
+        size: 210mm 297mm;
+        margin: 0;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html {
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #222;
+        background: white;
+        overflow: hidden;
+      }
+      .print-sheet {
+        width: 210mm;
+        height: 297mm;
+        display: flex;
+        flex-direction: column;
+        page-break-after: auto;
+      }
+      .print-sheet:nth-child(2n) {
+        page-break-after: always;
+      }
+      .a5-invoice-container {
+        width: 210mm;
+        height: 148mm;
+        display: block;
+        position: relative;
+        page-break-inside: avoid;
+        border-bottom: 1px solid #ddd;
+        overflow: hidden;
+        padding: 0;
+      }
+      .a5-invoice-container:last-child {
+        border-bottom: none;
+      }
+      .invoice-box {
+        width: 148mm;
+        height: 210mm;
+        padding: 15mm;
+        box-sizing: border-box;
+        background: white;
+        font-size: 12px;
+        line-height: 1.4;
+        transform: rotate(90deg) scale(0.8);
+        transform-origin: center center;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-top: -105mm;
+        margin-left: -74mm;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      .title {
+        font-size: 45px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 30px;
+      }
+      .company-details {
+        text-align: right;
+        line-height: 18px;
+      }
+      .details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .details div {
+        width: 48%;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        table-layout: fixed;
+      }
+      table th {
+        border-bottom: 2px solid #4B00FF;
+        text-align: left;
+        padding: 10px 5px;
+        color: #4B00FF;
+        text-transform: uppercase;
+        font-size: 13px;
+      }
+      table td {
+        padding: 8px 5px;
+        border-bottom: 1px solid #eee;
+      }
+      colgroup col:nth-child(1) { width: 50%; }
+      colgroup col:nth-child(2) { width: 15%; }
+      colgroup col:nth-child(3) { width: 10%; }
+      colgroup col:nth-child(4) { width: 25%; }
+      .totals {
+        margin-top: 30px;
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .totals td {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .totals .total {
+        font-weight: bold;
+        font-size: 16px;
+        border-top: 2px solid #000;
+      }
+      .highlight {
+        color: #4B00FF;
+        font-weight: bold;
+      }
+      @media print {
+        @page {
+          size: A4;
+          size: 210mm 297mm;
+          margin: 0;
+        }
+        html {
+          width: 210mm !important;
+          height: 297mm !important;
+        }
+        body {
+          width: 210mm !important;
+          height: 297mm !important;
+        }
+        .print-sheet {
+          display: flex !important;
+          flex-direction: column !important;
+          width: 210mm !important;
+          height: 297mm !important;
+        }
+        .a5-invoice-container {
+          width: 210mm !important;
+          height: 148mm !important;
+          position: relative !important;
+        }
+        .invoice-box {
+          width: 148mm !important;
+          height: 210mm !important;
+          transform: rotate(90deg) scale(0.8) !important;
+          transform-origin: center center !important;
+          position: absolute !important;
+          top: 50% !important;
+          left: 50% !important;
+          margin-top: -105mm !important;
+          margin-left: -74mm !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="print-sheet">
+      <div class="a5-invoice-container">
+        <div class="invoice-box">
+          <div class="header">
+            <div>
+              <div class="title">Invoice</div>
+              ${cartonCount ? `<div style="font-size: 14px; color: #666; margin-top: 5px;"><strong>No. of Cartons:</strong> ${cartonCount}</div>` : ''}
+            </div>
+            <div class="company-details">
+              <strong>YOUR COMPANY</strong><br />
+              1234 Your Street<br />
+              City, California 90210<br />
+              United States<br />
+              1-888-123-4567
+            </div>
+          </div>
+
+          <div class="details">
+            <div>
+              <strong>Billed To</strong><br />
+              Customer Phone: ${invoice.customerPhone || "N/A"}<br />
+              ${invoice.customerName || ''}<br />
+              ${invoice.customerFirm || "No Firm"}<br />
+              ${invoice.customerAddress || "No Address"}<br />
+            </div>
+            <div>
+              <table style="width: 100%;">
+                <tr><td>Date Issued:</td><td>${createdAtDate}</td></tr>
+                <tr><td>Invoice Number:</td><td>INV-${invoice.id.toString().padStart(4, "0")}</td></tr>
+                <tr><td><strong>Remaining Balance:</strong></td><td><strong>${formatCurrency(invoice.remainingBalance)}</strong></td></tr>
+              </table>
+            </div>
+          </div>
+
+          <table>
+            <colgroup><col /><col /><col /><col /></colgroup>
+            <tr>
+              <th>PRODUCTS</th>
+              <th>RATE</th>
+              <th>QTY</th>
+              <th>AMOUNT</th>
+            </tr>
+            ${productRows}
+          </table>
+
+          <table class="totals">
+            <colgroup><col /><col /><col /><col /></colgroup>
+            <tr><td>Subtotal</td><td></td><td><strong>${totalQuantity}</strong></td><td>${formatCurrency(invoice.totalAmount)}</td></tr>
+            ${discountAmount > 0 ? `<tr><td>Discount ${discountPercent > 0 ? `(${discountPercent.toFixed(2)}%)` : ''}</td><td></td><td></td><td>${formatCurrency(discountAmount)}</td></tr>` : ''}
+            ${taxRows}
+            ${packagingRows}
+            ${transportationRows}
+            <tr class="total"><td>Total</td><td></td><td></td><td>${formatCurrency(invoice.finalAmount)}</td></tr>
+            <tr><td>Amount Paid by Customer</td><td></td><td></td><td>${formatCurrency(invoice.paidByCustomer)}</td></tr>
+            <tr class="highlight"><td>Remaining Balance</td><td></td><td></td><td>${formatCurrency(invoice.remainingBalance)}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="a5-invoice-container">
+        <!-- Second invoice for next page or empty -->
+      </div>
+    </div>
+  </body>
+</html>`;
+
+    return {
+      success: true,
+      data: printHtml,
+      message: 'Print HTML Generated Successfully'
+    };
+
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
+};
+
+// Generate PDF from HTML
+export const generatePDF = async (invoiceId: number, fileName: string, isPrintLayout: boolean = false): Promise<string> => {
+  try {
+    // Generate HTML directly from invoice data
+    let htmlToConvert: string;
+    if (isPrintLayout) {
+      const printResult = await generatePrintInvoiceHtml(invoiceId);
+      htmlToConvert = printResult.data;
+    } else {
+      const normalResult = await generateInvoiceHtml(invoiceId);
+      htmlToConvert = normalResult.data;
+    }
     
     // Dynamic import to avoid issues if library not linked
     let RNHTMLtoPDF;
