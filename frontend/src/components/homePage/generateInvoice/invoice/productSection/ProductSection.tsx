@@ -69,10 +69,8 @@ const ProductSection: React.FC<ProductSectionProps> = ({
         productId: Number(prod.id) || null, // Assuming prod.id is the backend product ID
         productPrice: Number(prod.price || 0), // Pass the custom price
         productQuantity: Number(prod.quantity || 0),
-        productAmountDiscount:
-          prod.discountType === '₹' ? Number(prod.discount || 0) : 0,
-        productPercentDiscount:
-          prod.discountType === '%' ? Number(prod.discount || 0) : 0,
+        productAmountDiscount: 0,
+        productPercentDiscount: 0,
       }));
       const totalAmt = products.reduce((sum, p) => sum + (p.total || 0), 0);
       onLineItemsChange({ lineItems, totalAmt });
@@ -118,18 +116,11 @@ const ProductSection: React.FC<ProductSectionProps> = ({
     const updated = { ...currentProduct, [field]: value };
     
     // Recalculate total
-    if (field === 'price' || field === 'quantity' || field === 'discount' || field === 'discountType') {
+    if (field === 'price' || field === 'quantity') {
       let price = Number(updated.price || 0);
       let qty = Number(updated.quantity || 0);
       let total = price * qty;
       
-      if (updated.discount) {
-        if (updated.discountType === '%') {
-          total -= (total * Number(updated.discount)) / 100;
-        } else {
-          total -= Number(updated.discount);
-        }
-      }
       updated.total = Math.max(0, total);
     }
     
@@ -365,32 +356,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
           />
         </View>
 
-        {/* Discount */}
-        <View style={styles.inputBox}>
-          <Text style={styles.label}>Discount</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            placeholder="0"
-            placeholderTextColor="#94a3b8"
-            value={currentProduct.discount}
-            onChangeText={t => updateCurrentProduct('discount', t)}
-          />
-          <View style={styles.discountRow}>
-            <TouchableOpacity
-              onPress={() => updateCurrentProduct('discountType', '%')}
-              style={[styles.discountBtn, currentProduct.discountType === '%' && styles.discountSelected]}
-            >
-              <Text style={currentProduct.discountType === '%' ? styles.selectedText : styles.unselectedText}>%</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => updateCurrentProduct('discountType', '₹')}
-              style={[styles.discountBtn, currentProduct.discountType === '₹' && styles.discountSelected]}
-            >
-              <Text style={currentProduct.discountType === '₹' ? styles.selectedText : styles.unselectedText}>₹</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+
 
         {/* Total */}
         <Text style={styles.totalText}>Total: ₹{currentProduct.total.toFixed(2)}</Text>
@@ -409,9 +375,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
       <Text style={[styles.tableCell, styles.tableCellName]} numberOfLines={1}>{item.name}</Text>
       <Text style={[styles.tableCell, styles.tableCellPrice]}>₹{item.price || '0'}</Text>
       <Text style={[styles.tableCell, styles.tableCellQty]}>{item.quantity || '0'}</Text>
-      <Text style={[styles.tableCell, styles.tableCellDiscount]}>
-        {item.discount ? `${item.discount}${item.discountType}` : '-'}
-      </Text>
+
       <Text style={[styles.tableCell, styles.tableCellTotal]}>₹{item.total.toFixed(2)}</Text>
       <TouchableOpacity onPress={() => handleRemoveItem(item.id)} style={[styles.tableCellAction, { padding: 5 }]}>
         <Text style={{ color: '#ef4444', fontSize: 12 }}>✕</Text>
@@ -436,7 +400,7 @@ const ProductSection: React.FC<ProductSectionProps> = ({
             <Text style={[styles.tableHeaderCell, styles.tableCellName]}>Name</Text>
             <Text style={[styles.tableHeaderCell, styles.tableCellPrice]}>Price</Text>
             <Text style={[styles.tableHeaderCell, styles.tableCellQty]}>Qty</Text>
-            <Text style={[styles.tableHeaderCell, styles.tableCellDiscount]}>Disc.</Text>
+
             <Text style={[styles.tableHeaderCell, styles.tableCellTotal]}>Total</Text>
             <Text style={[styles.tableHeaderCell, styles.tableCellAction]}></Text>
           </View>
@@ -767,20 +731,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tableCellIndex: {
-    width: '7%',
+    width: '10%',
   },
   tableCellName: {
-    width: '25%',
+    width: '40%',
     textAlign: 'left',
   },
   tableCellPrice: {
-    width: '15%',
+    width: '20%',
   },
   tableCellQty: {
     width: '10%',
-  },
-  tableCellDiscount: {
-    width: '13%',
   },
   tableCellTotal: {
     width: '20%',

@@ -5,6 +5,13 @@ const safeStr = (str: string | null | undefined) => (str ? str.replace(/'/g, "''
 
 // --- CUSTOMER SERVICE ---
 
+const getISTTime = () => {
+  const now = new Date();
+  const offsetMs = 5.5 * 60 * 60 * 1000; // +5:30
+  const istDate = new Date(now.getTime() + offsetMs);
+  return istDate.toISOString().replace('Z', '+05:30');
+};
+
 export const getCustomersInfo = async () => {
   try {
     const results = db.execute('SELECT * FROM Customer ORDER BY createdAt DESC');
@@ -51,7 +58,7 @@ export const addCustomer = async (data: any) => {
     const result = db.execute(
       `INSERT INTO Customer (name, phone, firm, address, balance, createdAt, updatedAt) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, phone, firm, address, balance ? Number(balance) : 0, new Date().toISOString(), new Date().toISOString()]
+      [name, phone, firm, address, balance ? Number(balance) : 0, getISTTime(), getISTTime()]
     );
     
     // Fetch created customer
@@ -71,7 +78,7 @@ export const updateCustomer = async (id: number, data: any) => {
   try {
     db.execute(
       `UPDATE Customer SET name = ?, phone = ?, firm = ?, balance = ?, updatedAt = ? WHERE id = ?`,
-      [name, phone, firm, balance ? Number(balance) : 0, new Date().toISOString(), id]
+      [name, phone, firm, balance ? Number(balance) : 0, getISTTime(), id]
     );
     const updated = db.execute(`SELECT * FROM Customer WHERE id = ?`, [id]);
     return {
@@ -130,7 +137,7 @@ export const addProduct = async (data: any) => {
   try {
     const result = db.execute(
       `INSERT INTO Product (name, price, createdAt, updatedAt) VALUES (?, ?, ?, ?)`,
-      [name, price, new Date().toISOString(), new Date().toISOString()]
+      [name, price, getISTTime(), getISTTime()]
     );
     const created = db.execute(`SELECT * FROM Product WHERE id = ${result.insertId}`);
     return {
@@ -148,7 +155,7 @@ export const updateProduct = async (id: number, data: any) => {
   try {
     db.execute(
       `UPDATE Product SET name = ?, price = ?, updatedAt = ? WHERE id = ?`,
-      [name, price, new Date().toISOString(), id]
+      [name, price, getISTTime(), id]
     );
      const updated = db.execute(`SELECT * FROM Product WHERE id = ?`, [id]);
     return {
@@ -206,7 +213,7 @@ export const addInvoice = async (data: any) => {
     const remainingBalance = prevBalance + finalAmount - paidByCustomer;
 
     // 2. Create Invoice
-    const now = new Date().toISOString();
+    const now = getISTTime();
     const invRes = db.execute(
       `INSERT INTO Invoice (
         customerId, totalAmount, amountDiscount, percentDiscount, finalAmount, 
@@ -338,22 +345,14 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
         const rate = Number(item.productPrice || 0);
         
         const qty = item.productQuantity;
-        const percentDiscount = item.productPercentDiscount || 0;
-        const amountDiscount = item.productAmountDiscount || 0;
-        const totalBeforeDiscount = rate * qty;
-        const totalDiscount =
-          amountDiscount > 0
-            ? amountDiscount
-            : (totalBeforeDiscount * percentDiscount) / 100;
-        const amountAfterDiscount = totalBeforeDiscount - totalDiscount;
+        const total = rate * qty;
 
         return `
           <tr>
             <td>${name}</td>
             <td>${formatCurrency(rate)}</td>
             <td>${qty}</td>
-            <td>${totalDiscount > 0 ? formatCurrency(totalDiscount) : ""}</td>
-            <td>${formatCurrency(amountAfterDiscount)}</td>
+            <td>${formatCurrency(total)}</td>
           </tr>`;
       })
       .join("");
@@ -392,11 +391,11 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
           displayAmount = 0;
         }
 
+        const formattedPercent = displayPercent % 1 === 0 ? displayPercent.toFixed(0) : displayPercent.toFixed(2);
         return `
         <tr>
-          <td>Tax: ${tax.name}</td>
+          <td>${tax.name} ${displayPercent > 0 ? `(${formattedPercent}%)` : ''}</td>
           <td></td><td></td>
-          <td>${displayPercent.toFixed(2)}%</td>
           <td>${formatCurrency(displayAmount)}</td>
         </tr>`;
       })
@@ -414,9 +413,8 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
           
           return `
         <tr>
-          <td>${label}</td>
+          <td>${label} ${details ? `(${details})` : ''}</td>
           <td></td><td></td>
-          <td>${details}</td>
           <td>${formatCurrency(totalAmount)}</td>
         </tr>`;
         }
@@ -432,9 +430,8 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
 
           return `
         <tr>
-          <td>${label}</td>
+          <td>${label} ${details ? `(${details})` : ''}</td>
           <td></td><td></td>
-          <td>${details}</td>
           <td>${formatCurrency(totalAmount)}</td>
         </tr>`;
         }
@@ -442,7 +439,9 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
       .join("");
 
     // Date formatting
-    const createdAtDate = new Date(invoice.createdAt).toLocaleDateString();
+    const createdAtDate = new Date(invoice.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    const totalQuantity = invoice.invoiceLineItems.reduce((sum: number, item: any) => sum + (Number(item.productQuantity) || 0), 0);
 
     const html = `
 <!DOCTYPE html>
@@ -521,11 +520,10 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
         padding: 8px 5px;
         border-bottom: 1px solid #eee;
       }
-      colgroup col:nth-child(1) { width: 45%; }
+      colgroup col:nth-child(1) { width: 50%; }
       colgroup col:nth-child(2) { width: 15%; }
-      colgroup col:nth-child(3) { width: 8%; }
-      colgroup col:nth-child(4) { width: 17%; }
-      colgroup col:nth-child(5) { width: 15%; }
+      colgroup col:nth-child(3) { width: 10%; }
+      colgroup col:nth-child(4) { width: 25%; }
       .totals {
         margin-top: 30px;
         width: 100%;
@@ -566,7 +564,7 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
       <div class="details">
         <div>
           <strong>Billed To</strong><br />
-          Customer ID: ${invoice.customerId}<br />
+          Customer Phone: ${invoice.customerPhone || "N/A"}<br />
           ${invoice.customerName || ''}<br />
           ${invoice.customerFirm || "No Firm"}<br />
           ${invoice.customerAddress || "No Address"}<br />
@@ -581,27 +579,28 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
       </div>
 
       <table>
-        <colgroup><col /><col /><col /><col /><col /></colgroup>
+        <colgroup><col /><col /><col /><col /></colgroup>
           <tr>
             <th>PRODUCTS</th>
             <th>RATE</th>
             <th>QTY</th>
-            <th>DISCOUNT</th>
             <th>AMOUNT</th>
           </tr>
         ${productRows}
       </table>
 
       <table class="totals">
-        <colgroup><col /><col /><col /><col /><col /></colgroup>
-        <tr><td>Subtotal</td><td></td><td></td><td></td><td>${formatCurrency(invoice.totalAmount)}</td></tr>
-        <tr><td>Discount</td><td></td><td></td><td>${discountPercent.toFixed(2)}%</td><td>${formatCurrency(discountAmount)}</td></tr>
+        <colgroup><col /><col /><col /><col /></colgroup>
+      <table class="totals">
+        <colgroup><col /><col /><col /><col /></colgroup>
+        <tr><td>Subtotal</td><td></td><td><strong>${totalQuantity}</strong></td><td>${formatCurrency(invoice.totalAmount)}</td></tr>
+        ${discountAmount > 0 ? `<tr><td>Discount ${discountPercent > 0 ? `(${discountPercent.toFixed(2)}%)` : ''}</td><td></td><td></td><td>${formatCurrency(discountAmount)}</td></tr>` : ''}
         ${taxRows}
         ${packagingRows}
         ${transportationRows}
-        <tr class="total"><td>Total</td><td></td><td></td><td></td><td>${formatCurrency(invoice.finalAmount)}</td></tr>
-        <tr><td>Amount Paid by Customer</td><td></td><td></td><td></td><td>${formatCurrency(invoice.paidByCustomer)}</td></tr>
-        <tr class="highlight"><td>Remaining Balance</td><td></td><td></td><td></td><td>${formatCurrency(invoice.remainingBalance)}</td></tr>
+        <tr class="total"><td>Total</td><td></td><td></td><td>${formatCurrency(invoice.finalAmount)}</td></tr>
+        <tr><td>Amount Paid by Customer</td><td></td><td></td><td>${formatCurrency(invoice.paidByCustomer)}</td></tr>
+        <tr class="highlight"><td>Remaining Balance</td><td></td><td></td><td>${formatCurrency(invoice.remainingBalance)}</td></tr>
       </table>
     </div>
   </body>
@@ -666,7 +665,7 @@ export const createCredit = async (customerId: number, amountPaidByCustomer: num
 
         const previousBalance = customer.balance;
         const finalBalance = previousBalance - amountPaidByCustomer;
-        const now = new Date().toISOString();
+        const now = getISTTime();
 
         // 2. Update Customer Balance
         db.execute('UPDATE Customer SET balance = ? WHERE id = ?', [finalBalance, customerId]);
@@ -826,7 +825,7 @@ export const generateCreditHtml = async (creditId: number) => {
             <div>
               <div class="title">Credit Note</div>
               <div style="font-size: 18px;">Credit ID: ${credit.id}</div>
-              <div>Date Issued: ${new Date(credit.createdAt).toLocaleDateString()}</div>
+              <div>Date Issued: ${new Date(credit.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
             </div>
             <div class="company-details">
               <strong>YOUR COMPANY</strong><br />
@@ -847,7 +846,7 @@ export const generateCreditHtml = async (creditId: number) => {
 
             <div>
               <table style="width: 100%;">
-                <tr><td>Customer ID:</td><td>${customer.id}</td></tr>
+                <tr><td>Customer Phone:</td><td>${customer.phone || "N/A"}</td></tr>
                 <tr><td>Status:</td><td>${credit.status}</td></tr>
               </table>
             </div>
