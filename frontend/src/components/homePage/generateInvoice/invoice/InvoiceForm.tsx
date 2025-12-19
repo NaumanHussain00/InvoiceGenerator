@@ -241,7 +241,7 @@ const InvoiceForm: React.FC = () => {
               style={styles.printButton}
               onPress={async () => {
                 try {
-                  // Generate print-specific HTML (landscape, 2 pages per sheet)
+                  // Generate print-specific HTML (A4 landscape with A5 portrait pages)
                   const printHtml = generatePrintHtml(htmlContent);
                   await RNPrint.print({ html: printHtml });
                 } catch (error) {

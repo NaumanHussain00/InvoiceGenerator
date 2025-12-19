@@ -617,14 +617,14 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
  }
 };
 
-// Transform HTML for print (landscape, 2 pages per sheet)
+// Transform HTML for print (A4 landscape with A5 portrait pages side-by-side)
 export const generatePrintHtml = (htmlContent: string): string => {
   // Extract the invoice-box content from the original HTML
   const invoiceBoxMatch = htmlContent.match(/<div[^>]*class="invoice-box"[^>]*>([\s\S]*?)<\/div>\s*(?=<\/body>|$)/i);
   const invoiceContent = invoiceBoxMatch ? invoiceBoxMatch[1] : htmlContent.replace(/<body[^>]*>|<\/body>/gi, '');
 
-  // Create print-specific HTML with landscape orientation and 2 pages per sheet
-  // This uses CSS to scale the invoice to 50% width and arranges pages side-by-side
+  // A4 landscape: 297mm × 210mm
+  // A5 portrait: 148mm × 210mm (fits 2 side-by-side on A4 landscape)
   const printHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -653,19 +653,19 @@ export const generatePrintHtml = (htmlContent: string): string => {
         width: 100%;
         display: flex;
         flex-direction: row;
-        flex-wrap: wrap;
+        min-height: 100vh;
       }
-      .invoice-half {
-        width: 50%;
-        min-height: 210mm;
-        padding: 5mm;
+      .a5-page {
+        width: 148mm; /* A5 width */
+        height: 210mm; /* A5 height */
+        padding: 10mm;
         display: flex;
         align-items: flex-start;
         justify-content: center;
         page-break-inside: avoid;
         border-right: 1px solid #ddd;
       }
-      .invoice-half:nth-child(even) {
+      .a5-page:last-child {
         border-right: none;
       }
       .invoice-box {
@@ -674,9 +674,9 @@ export const generatePrintHtml = (htmlContent: string): string => {
         padding: 20mm;
         box-sizing: border-box;
         background: white;
-        transform: scale(0.48);
+        transform: scale(0.7);
         transform-origin: top center;
-        margin: 0 auto;
+        /* Scale factor: A5 width (148mm) / A4 width (210mm) ≈ 0.705, using 0.7 for better fit */
       }
       .title {
         font-size: 45px;
@@ -746,11 +746,11 @@ export const generatePrintHtml = (htmlContent: string): string => {
         .print-container {
           display: flex;
         }
-        .invoice-half {
+        .a5-page {
           page-break-inside: avoid;
           border-right: 1px solid #ddd;
         }
-        .invoice-half:nth-child(odd) {
+        .a5-page:nth-child(odd) {
           page-break-after: always;
         }
         body {
@@ -762,7 +762,7 @@ export const generatePrintHtml = (htmlContent: string): string => {
   </head>
   <body>
     <div class="print-container">
-      <div class="invoice-half">
+      <div class="a5-page">
         <div class="invoice-box">
           ${invoiceContent}
         </div>
