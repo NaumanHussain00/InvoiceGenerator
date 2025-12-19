@@ -625,6 +625,7 @@ export const generatePrintHtml = (htmlContent: string): string => {
 
   // A4 landscape: 297mm × 210mm
   // A5 portrait: 148mm × 210mm (fits 2 side-by-side on A4 landscape)
+  // Scale: A5 usable width (148mm - 20mm padding) / A4 usable width (210mm - 40mm padding) = 128/170 ≈ 0.75
   const printHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -649,54 +650,58 @@ export const generatePrintHtml = (htmlContent: string): string => {
         padding: 0;
         background: white;
       }
-      .print-container {
-        width: 100%;
+      .print-sheet {
+        width: 297mm; /* A4 landscape width */
+        height: 210mm; /* A4 landscape height */
         display: flex;
         flex-direction: row;
-        min-height: 100vh;
+        page-break-after: auto;
+      }
+      .print-sheet:nth-child(2n) {
+        page-break-after: always;
       }
       .a5-page {
-        width: 148mm; /* A5 width */
-        height: 210mm; /* A5 height */
-        padding: 10mm;
+        width: 148.5mm; /* Exactly half of A4 landscape width (297mm / 2) */
+        height: 210mm; /* A5 height matches A4 landscape height */
+        padding: 8mm;
         display: flex;
         align-items: flex-start;
         justify-content: center;
         page-break-inside: avoid;
         border-right: 1px solid #ddd;
+        overflow: hidden;
       }
       .a5-page:last-child {
         border-right: none;
       }
       .invoice-box {
-        width: 210mm; /* Original A4 width */
-        min-height: 297mm; /* Original A4 height */
-        padding: 20mm;
+        width: 132.5mm; /* A5 usable width: 148.5mm - 16mm padding */
+        min-height: 194mm; /* A5 usable height: 210mm - 16mm padding */
+        padding: 15mm;
         box-sizing: border-box;
         background: white;
-        transform: scale(0.7);
-        transform-origin: top center;
-        /* Scale factor: A5 width (148mm) / A4 width (210mm) ≈ 0.705, using 0.7 for better fit */
       }
       .title {
-        font-size: 45px;
+        font-size: 32px;
         font-weight: bold;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
       }
       .header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
       }
       .company-details {
         text-align: right;
-        line-height: 18px;
+        line-height: 14px;
+        font-size: 11px;
       }
       .details {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
+        font-size: 11px;
       }
       .details div {
         width: 48%;
@@ -704,19 +709,20 @@ export const generatePrintHtml = (htmlContent: string): string => {
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 20px;
+        margin-top: 15px;
         table-layout: fixed;
+        font-size: 10px;
       }
       table th {
         border-bottom: 2px solid #4B00FF;
         text-align: left;
-        padding: 10px 5px;
+        padding: 7px 4px;
         color: #4B00FF;
         text-transform: uppercase;
-        font-size: 13px;
+        font-size: 10px;
       }
       table td {
-        padding: 8px 5px;
+        padding: 6px 4px;
         border-bottom: 1px solid #eee;
       }
       colgroup col:nth-child(1) { width: 50%; }
@@ -724,18 +730,19 @@ export const generatePrintHtml = (htmlContent: string): string => {
       colgroup col:nth-child(3) { width: 10%; }
       colgroup col:nth-child(4) { width: 25%; }
       .totals {
-        margin-top: 30px;
+        margin-top: 20px;
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
+        font-size: 10px;
       }
       .totals td {
-        padding: 8px 0;
+        padding: 6px 0;
         border-bottom: 1px solid #eee;
       }
       .totals .total {
         font-weight: bold;
-        font-size: 16px;
+        font-size: 12px;
         border-top: 2px solid #000;
       }
       .highlight {
@@ -743,15 +750,16 @@ export const generatePrintHtml = (htmlContent: string): string => {
         font-weight: bold;
       }
       @media print {
-        .print-container {
+        .print-sheet {
           display: flex;
+          page-break-after: auto;
+        }
+        .print-sheet:nth-child(2n) {
+          page-break-after: always;
         }
         .a5-page {
           page-break-inside: avoid;
           border-right: 1px solid #ddd;
-        }
-        .a5-page:nth-child(odd) {
-          page-break-after: always;
         }
         body {
           margin: 0;
@@ -761,11 +769,14 @@ export const generatePrintHtml = (htmlContent: string): string => {
     </style>
   </head>
   <body>
-    <div class="print-container">
+    <div class="print-sheet">
       <div class="a5-page">
         <div class="invoice-box">
           ${invoiceContent}
         </div>
+      </div>
+      <div class="a5-page">
+        <!-- Second A5 page for next invoice page or empty -->
       </div>
     </div>
   </body>
