@@ -75,20 +75,30 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
       // Generate print-specific HTML (A4 portrait with horizontal A5 invoices)
       const printHtml = generatePrintHtml(htmlContent);
       
-      // Generate PDF first
-      const options = {
-        html: printHtml,
-        fileName: `invoice_${invoiceId}`,
-        directory: 'Documents',
-        base64: false,
-        width: 210, // A4 width in mm
-        height: 297, // A4 height in mm
-      };
+      // Try to generate PDF first, fallback to direct HTML printing
+      if (RNHTMLtoPDF && RNHTMLtoPDF.convert) {
+        try {
+          const options = {
+            html: printHtml,
+            fileName: `invoice_${invoiceId}`,
+            directory: 'Documents',
+            base64: false,
+            width: 210, // A4 width in mm
+            height: 297, // A4 height in mm
+          };
+          
+          const file = await RNHTMLtoPDF.convert(options);
+          
+          // Print the PDF
+          await RNPrint.print({ filePath: file.filePath });
+          return;
+        } catch (pdfError) {
+          console.warn('PDF generation failed, falling back to HTML print:', pdfError);
+        }
+      }
       
-      const file = await RNHTMLtoPDF.convert(options);
-      
-      // Print the PDF
-      await RNPrint.print({ filePath: file.filePath });
+      // Fallback to direct HTML printing
+      await RNPrint.print({ html: printHtml });
     } catch (error) {
       console.error('Print error:', error);
       Alert.alert('Error', 'Failed to print invoice.');
