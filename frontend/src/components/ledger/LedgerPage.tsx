@@ -21,7 +21,7 @@ import {
   typography,
   commonStyles,
 } from '../../theme/theme';
-import { getLedgerOverview, getCustomerHistory } from '../../services/OfflineService';
+import { getLedgerOverview, getCustomerHistory, exportAllDataToCSV } from '../../services/OfflineService';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -73,6 +73,7 @@ const LedgerPage: React.FC = () => {
   const [ledgerData, setLedgerData] = useState<LedgerData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAdminOptions, setShowAdminOptions] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -88,9 +89,7 @@ const LedgerPage: React.FC = () => {
     checkPasswordExists();
   }, []);
 
-  useEffect(() => {
-    checkPasswordExists();
-  }, []);
+
 
   useFocusEffect(
     React.useCallback(() => {
@@ -152,6 +151,20 @@ const LedgerPage: React.FC = () => {
     } catch (error) {
       Alert.alert('Error', 'Failed to save password');
     }
+  };
+
+
+
+  const handleExportCSV = async () => {
+       try {
+           const res = await exportAllDataToCSV();
+           if(res.success) {
+               // Success message is optional since Share sheet opens, but good for feedback
+               console.log('Export success');
+           }
+       } catch(e: any) {
+            if (e.message !== 'Cancelled') Alert.alert('Export Failed', e.message);
+       }
   };
 
   const fetchLedgerData = async () => {
@@ -419,11 +432,42 @@ const LedgerPage: React.FC = () => {
         <Text style={styles.headerTitle}>Customer Ledger</Text>
         <TouchableOpacity
           style={styles.changePasswordLink}
-          onPress={() => setIsChangingPassword(true)}
+          onPress={() => setShowAdminOptions(true)}
         >
-          <Text style={styles.changePasswordText}>Change Password</Text>
+          <Text style={styles.changePasswordText}>⚙️ Options</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={showAdminOptions}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAdminOptions(false)}
+      >
+        <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowAdminOptions(false)}
+        >
+            <View style={styles.adminModalContent}>
+                <Text style={styles.adminModalTitle}>Admin Options</Text>
+                
+                <TouchableOpacity style={styles.adminOption} onPress={() => { setShowAdminOptions(false); setIsChangingPassword(true); }}>
+                    <Text style={styles.adminOptionText}>🔑 Change Password</Text>
+                </TouchableOpacity>
+                
+                <View style={styles.divider} />
+
+                <TouchableOpacity style={styles.adminOption} onPress={handleExportCSV}>
+                    <Text style={styles.adminOptionText}>📊 Export Data (CSV)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.closeAdminButton} onPress={() => setShowAdminOptions(false)}>
+                    <Text style={styles.closeAdminButtonText}>Cancel</Text>
+                </TouchableOpacity>
+            </View>
+        </TouchableOpacity>
+      </Modal>
 
       {loading && !refreshing ? (
         <ActivityIndicator size="large" color="#1e3a5f" style={styles.loader} />
@@ -937,6 +981,52 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.bold,
     color: colors.primary,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg
+  },
+  adminModalContent: {
+      backgroundColor: colors.surface,
+      width: '100%',
+      maxWidth: 300,
+      borderRadius: borderRadius.md,
+      padding: spacing.lg,
+      elevation: 5
+  },
+  adminModalTitle: {
+      fontSize: typography.fontSize.xl,
+      fontWeight: typography.fontWeight.bold,
+      color: colors.primary,
+      marginBottom: spacing.lg,
+      textAlign: 'center'
+  },
+  adminOption: {
+      paddingVertical: spacing.md,
+  },
+  adminOptionText: {
+      fontSize: typography.fontSize.base,
+      color: colors.textPrimary,
+      fontWeight: '500'
+  },
+  divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginVertical: spacing.xs
+  },
+  closeAdminButton: {
+      marginTop: spacing.lg,
+      padding: spacing.md,
+      backgroundColor: colors.inputBackground,
+      borderRadius: borderRadius.base,
+      alignItems: 'center'
+  },
+  closeAdminButtonText: {
+      color: colors.textPrimary,
+      fontWeight: '600'
+  }
 });
 
 export default LedgerPage;

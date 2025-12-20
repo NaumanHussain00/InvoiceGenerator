@@ -1,4 +1,8 @@
 import db from './DatabaseService';
+import Share from 'react-native-share';
+import RNFetchBlob from 'rn-fetch-blob';
+import { zip } from 'react-native-zip-archive';
+import { Platform, Alert } from 'react-native';
 
 // Helper to escape strings for SQL
 const safeStr = (str: string | null | undefined) => (str ? str.replace(/'/g, "''") : '');
@@ -1242,6 +1246,106 @@ export const searchInvoices = async (filters: any) => {
         };
 
     } catch (error: any) {
+        throw new Error(error.message);
+    }
+};
+
+const getFormattedIST = () => {
+    const now = new Date();
+    const offsetMs = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + offsetMs);
+    
+    // dd-MM-yy_HH-mm
+    const day = String(istDate.getUTCDate()).padStart(2, '0');
+    const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+    const year = String(istDate.getUTCFullYear()).slice(-2);
+    const hour = String(istDate.getUTCHours()).padStart(2, '0');
+    const minute = String(istDate.getUTCMinutes()).padStart(2, '0');
+    
+    return `${day}-${month}-${year}_${hour}-${minute}`;
+};
+
+export const exportAllDataToCSV = async () => {
+    try {
+        const tables = [
+            'Customer', 
+            'Product', 
+            'Invoice', 
+            'Credit', 
+            'InvoiceLineItem', 
+            'TaxLineItem', 
+            'PackagingLineItem', 
+            'TransportationLineItem'
+        ];
+        
+        const timestamp = getFormattedIST();
+        const folderName = `invoiceData_${timestamp}`;
+        const folderPath = `${RNFetchBlob.fs.dirs.CacheDir}/${folderName}`;
+        const zipPath = `${RNFetchBlob.fs.dirs.CacheDir}/${folderName}.zip`;
+
+        // Create folder
+        if (await RNFetchBlob.fs.exists(folderPath)) {
+            await RNFetchBlob.fs.unlink(folderPath); // Clean up collision (unlikely)
+        }
+        await RNFetchBlob.fs.mkdir(folderPath);
+
+        let filesCreated = false;
+
+        for (const table of tables) {
+            const results = db.execute(`SELECT * FROM ${table}`);
+            const rows = results.rows?._array || [];
+            
+            if (rows.length === 0) continue;
+
+            // Get headers from first row
+            const headers = Object.keys(rows[0]);
+            let csvContent = headers.join(',') + '\n';
+
+            rows.forEach((row: any) => {
+                const values = headers.map(header => {
+                    const val = row[header];
+                    if (val === null || val === undefined) return '';
+                    const strVal = String(val);
+                    // Escape quotes and wrap in quotes if contains comma or quote
+                    if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
+                        return `"${strVal.replace(/"/g, '""')}"`;
+                    }
+                    return strVal;
+                });
+                csvContent += values.join(',') + '\n';
+            });
+
+            // Name: tableName_date_time.csv
+            const fileName = `${table}_${timestamp}.csv`;
+            const filePath = `${folderPath}/${fileName}`;
+            await RNFetchBlob.fs.writeFile(filePath, csvContent, 'utf8');
+            filesCreated = true;
+        }
+
+        if (!filesCreated) {
+            return { success: false, message: 'No data found to export' };
+        }
+
+        // Zip the folder
+        await zip(folderPath, zipPath);
+
+        await Share.open({
+            url: `file://${zipPath}`,
+            type: 'application/zip',
+            title: 'Export All Data',
+            subject: 'Invoice App Data Export',
+            filename: folderName, // For Android
+            failOnCancel: false,
+        });
+
+        // Optional: Cleanup
+        // await RNFetchBlob.fs.unlink(folderPath);
+        // await RNFetchBlob.fs.unlink(zipPath);
+
+        return { success: true, message: 'Export Initiated' };
+
+    } catch (error: any) {
+        if(error.message === 'User did not share') return { success: false, message: 'Cancelled' };
         throw new Error(error.message);
     }
 };
