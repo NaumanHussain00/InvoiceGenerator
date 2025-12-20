@@ -22,7 +22,7 @@ import {
   commonStyles,
 } from '../../theme/theme';
 import { getLedgerOverview, getCustomerHistory } from '../../services/OfflineService';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const LEDGER_PASSWORD_KEY = '@ledger_password';
@@ -89,10 +89,19 @@ const LedgerPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (isUnlocked) {
-      fetchLedgerData();
-    }
-  }, [isUnlocked]);
+    checkPasswordExists();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isUnlocked) {
+        fetchLedgerData();
+        if (selectedCustomer) {
+            fetchCustomerHistory(selectedCustomer.id);
+        }
+      }
+    }, [isUnlocked, selectedCustomer?.id]) // Depend on ID, not full object to avoid loops if object splits reference
+  );
 
   const checkPasswordExists = async () => {
     try {
@@ -177,7 +186,11 @@ const LedgerPage: React.FC = () => {
       console.log('[History] Fetching offline history for:', customerId);
       const response = await getCustomerHistory(customerId);
       if (response && response.success && response.data) {
-        setCustomerHistory(response.data);
+        setCustomerHistory(response.data as unknown as CustomerHistory);
+        // Also update selectedCustomer to reflect new balance in Modal Header
+        if (response.data.customer) {
+            setSelectedCustomer(response.data.customer);
+        }
       } else {
         throw new Error(response?.message || 'Failed to fetch history');
       }

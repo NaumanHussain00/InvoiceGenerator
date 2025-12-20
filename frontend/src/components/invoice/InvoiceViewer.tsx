@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { generateInvoiceHtml } from '../../services/OfflineService';
+import { generateInvoiceHtml, voidInvoice } from '../../services/OfflineService';
 import RNPrint from 'react-native-print';
 import { colors, spacing, typography } from '../../theme/theme';
 import { RouteProp } from '@react-navigation/native';
@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type RootStackParamList = {
   InvoiceViewer: { invoiceId: string };
+  InvoiceForm: { invoiceId: number; isEdit: boolean };
 };
 
 type InvoiceViewerRouteProp = RouteProp<RootStackParamList, 'InvoiceViewer'>;
@@ -78,6 +79,37 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
     }
   };
 
+  const handleEdit = () => {
+      navigation.navigate('InvoiceForm', { invoiceId: Number(invoiceId), isEdit: true });
+  };
+
+  const handleVoid = () => {
+    Alert.alert(
+      'Void Invoice',
+      'Are you sure you want to void this invoice? This will reverse the transaction and update the customer balance. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Void Invoice',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const result = await voidInvoice(Number(invoiceId));
+              if (result.success) {
+                Alert.alert('Success', 'Invoice voided successfully.');
+                fetchInvoiceHTML(); // Refresh to show VOID watermark
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to void invoice.');
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -135,9 +167,23 @@ const InvoiceViewer: React.FC<InvoiceViewerProps> = ({ route, navigation }) => {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Invoice #{invoiceId}</Text>
-        <TouchableOpacity onPress={handlePrint} style={styles.printButton}>
-          <Text style={styles.printButtonText}>🖨️ Print</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity 
+            onPress={handleVoid} 
+            style={[styles.printButton, { backgroundColor: '#ff4444', marginRight: 8 }]}
+          >
+            <Text style={styles.printButtonText}>Void</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={handleEdit} 
+            style={[styles.printButton, { backgroundColor: '#4A90E2', marginRight: 8 }]}
+          >
+            <Text style={styles.printButtonText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handlePrint} style={styles.printButton}>
+            <Text style={styles.printButtonText}>🖨️ Print</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <WebView
         originWhitelist={['*']}

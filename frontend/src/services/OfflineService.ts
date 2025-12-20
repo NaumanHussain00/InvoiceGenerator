@@ -253,7 +253,7 @@ export const addInvoice = async (data: any) => {
                 productQuantity, productAmountDiscount, productPercentDiscount
               ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
               [
-                  invoiceId, item.productId, product?.name, pPrice,
+                  invoiceId, item.productId, item.productName || product?.name, pPrice,
                   item.productQuantity, item.productAmountDiscount, item.productPercentDiscount
               ]
           );
@@ -304,6 +304,57 @@ export const addInvoice = async (data: any) => {
         db.execute('ROLLBACK');
     } catch(e) { /* ignore rollback error if no transaction active */ }
     throw new Error(error.message);
+  }
+};
+
+export const voidInvoice = async (invoiceId: number) => {
+  try {
+     db.execute('BEGIN TRANSACTION');
+
+     // 1. Fetch Invoice
+     const invRes = db.execute(`SELECT * FROM Invoice WHERE id = ?`, [invoiceId]);
+     if (invRes.rows?.length === 0) {
+         db.execute('ROLLBACK');
+         throw new Error('Invoice not found');
+     }
+     const invoice = invRes.rows?.item(0);
+
+     if (invoice.status === 'VOID') {
+         db.execute('ROLLBACK');
+         throw new Error('Invoice is already voided');
+     }
+
+     const { customerId, finalAmount, paidByCustomer } = invoice;
+     const adjustment = finalAmount - paidByCustomer;
+
+    // 2. Fetch Customer
+     const custRes = db.execute(`SELECT * FROM Customer WHERE id = ?`, [customerId]);
+     if (custRes.rows?.length === 0) {
+          db.execute('ROLLBACK');
+          throw new Error('Customer not found');
+     }
+     const customer = custRes.rows?.item(0);
+
+     const newBalance = customer.balance - adjustment;
+
+     // 3. Update Customer Balance
+     db.execute(`UPDATE Customer SET balance = ? WHERE id = ?`, [newBalance, customer.id]);
+
+     // 4. Update Invoice Status
+     db.execute(`UPDATE Invoice SET status = 'VOID', updatedAt = ? WHERE id = ?`, [getISTTime(), invoiceId]);
+
+     db.execute('COMMIT');
+
+     return {
+         success: true,
+         message: 'Invoice Voided Successfully',
+         newBalance 
+     };
+
+  } catch(error: any) {
+      console.error('Void Invoice Failed:', error);
+      try { db.execute('ROLLBACK'); } catch (e) {}
+      throw new Error(error.message);
   }
 };
 
@@ -465,19 +516,29 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
         width: 210mm;
         min-height: 297mm;
         margin: auto;
-        padding: 20mm;
+        padding: 10mm;
         box-sizing: border-box;
         border: 1px solid #eee;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        line-height: 24px;
+        line-height: 20px;
         font-size: 14px;
         background: white;
       }
-      @media print {
-        .invoice-box {
           box-shadow: none;
           border: none;
         }
+      }
+      .watermark {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 100px;
+        color: rgba(255, 0, 0, 0.2);
+        z-index: 1000;
+        pointer-events: none;
+        border: 5px solid rgba(255, 0, 0, 0.2);
+        padding: 20px;
       }
       .title {
         font-size: 45px;
@@ -488,7 +549,7 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 30px;
+        margin-bottom: 15px;
       }
       .company-details {
         text-align: right;
@@ -497,7 +558,7 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
       .details {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
       }
       .details div {
         width: 48%;
@@ -505,19 +566,19 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 20px;
+        margin-top: 10px;
         table-layout: fixed;
       }
       table th {
         border-bottom: 2px solid #4B00FF;
         text-align: left;
-        padding: 10px 5px;
+        padding: 5px 5px;
         color: #4B00FF;
         text-transform: uppercase;
         font-size: 13px;
       }
       table td {
-        padding: 8px 5px;
+        padding: 4px 5px;
         border-bottom: 1px solid #eee;
       }
       colgroup col:nth-child(1) { width: 50%; }
@@ -525,13 +586,13 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
       colgroup col:nth-child(3) { width: 10%; }
       colgroup col:nth-child(4) { width: 25%; }
       .totals {
-        margin-top: 30px;
+        margin-top: 15px;
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
       }
       .totals td {
-        padding: 8px 0;
+        padding: 4px 0;
         border-bottom: 1px solid #eee;
       }
       .totals .total {
@@ -547,17 +608,14 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
   </head>
   <body>
     <div class="invoice-box">
+      ${invoice.status === 'VOID' ? '<div class="watermark">VOID</div>' : ''}
       <div class="header">
         <div>
           <div class="title">Invoice</div>
           ${cartonCount ? `<div style="font-size: 14px; color: #666; margin-top: 5px;"><strong>No. of Cartons:</strong> ${cartonCount}</div>` : ''}
         </div>
         <div class="company-details">
-          <strong>YOUR COMPANY</strong><br />
-          1234 Your Street<br />
-          City, California 90210<br />
-          United States<br />
-          1-888-123-4567
+          <h2>Shoe Company</h2>
         </div>
       </div>
 
@@ -646,6 +704,175 @@ export const getInvoices = async () => {
          throw new Error(error.message);
      }
 }
+
+// --- INVOICE READ & UPDATE ---
+
+export const getInvoiceDetails = async (invoiceId: number) => {
+    try {
+        const invRes = db.execute('SELECT * FROM Invoice WHERE id = ?', [invoiceId]);
+        if (invRes.rows?.length === 0) throw new Error('Invoice Not Found');
+        const invoice = invRes.rows?.item(0);
+
+        // Fetch Line Items
+        const pLines = db.execute('SELECT * FROM InvoiceLineItem WHERE invoiceId = ?', [invoiceId]);
+        const tLines = db.execute('SELECT * FROM TaxLineItem WHERE invoiceId = ?', [invoiceId]);
+        const pkgLines = db.execute('SELECT * FROM PackagingLineItem WHERE invoiceId = ?', [invoiceId]);
+        const trLines = db.execute('SELECT * FROM TransportationLineItem WHERE invoiceId = ?', [invoiceId]);
+        
+        // Fetch Customer for current balance info
+        const custRes = db.execute('SELECT * FROM Customer WHERE id = ?', [invoice.customerId]);
+        const customer = (custRes.rows && custRes.rows.length > 0) ? custRes.rows.item(0) : null;
+
+        return {
+            success: true,
+            data: {
+                ...invoice,
+                customer,
+                invoiceLineItems: pLines.rows?._array || [],
+                taxLineItems: tLines.rows?._array || [],
+                packagingLineItems: pkgLines.rows?._array || [],
+                transportationLineItems: trLines.rows?._array || []
+            }
+        };
+    } catch (error: any) {
+        throw new Error(error.message);
+    }
+}
+
+export const updateInvoice = async (invoiceId: number, data: any) => {
+  const {
+    customerId,
+    totalAmount,
+    amountDiscount,
+    percentDiscount,
+    finalAmount,
+    paidByCustomer,
+    invoiceLineItems,
+    taxLineItems,
+    packagingLineItems,
+    transportationLineItems,
+    numberOfCartons,
+  } = data;
+
+  try {
+    db.execute('BEGIN TRANSACTION');
+
+    // 1. Fetch Existing Invoice to Reverse Balance Effect
+    const oldInvRes = db.execute('SELECT * FROM Invoice WHERE id = ?', [invoiceId]);
+    if (oldInvRes.rows?.length === 0) {
+        db.execute('ROLLBACK');
+        throw new Error('Invoice Not Found');
+    }
+    const oldInvoice = oldInvRes.rows?.item(0);
+    
+    // 2. Fetch Customer
+    const custRes = db.execute('SELECT * FROM Customer WHERE id = ?', [customerId]);
+    if (custRes.rows?.length === 0) {
+        db.execute('ROLLBACK');
+        throw new Error('Customer Not Found');
+    }
+    const customer = custRes.rows?.item(0);
+
+    // 3. Calculate Balance Adjustment
+    // Old Net Effect: + (OldFinal - OldPaid)
+    // New Net Effect: + (NewFinal - NewPaid)
+    // NewBalance = CurrentBalance - OldEffect + NewEffect
+    
+    const oldEffect = oldInvoice.finalAmount - oldInvoice.paidByCustomer;
+    const newEffect = finalAmount - paidByCustomer;
+    
+    // Note: oldInvoice.custPrevBalance remains historically what it was BEFORE that invoice was ever created.
+    // We update the CURRENT customer balance.
+    const newCustomerBalance = customer.balance - oldEffect + newEffect;
+    
+    // 4. Update Customer Balance
+    db.execute('UPDATE Customer SET balance = ? WHERE id = ?', [newCustomerBalance, customerId]);
+
+    // 5. Update Invoice Record
+    const now = getISTTime();
+    db.execute(
+        `UPDATE Invoice SET 
+            totalAmount=?, amountDiscount=?, percentDiscount=?, finalAmount=?, 
+            paidByCustomer=?, remainingBalance=?, numberOfCartons=?, 
+            updatedAt=?, customerName=?, customerPhone=?, customerFirm=?, customerAddress=?
+         WHERE id=?`,
+        [
+            totalAmount, amountDiscount, percentDiscount, finalAmount,
+            paidByCustomer, oldInvoice.custPrevBalance + newEffect, numberOfCartons ? Number(numberOfCartons) : null,
+            now, customer.name, customer.phone, customer.firm, customer.address,
+            invoiceId
+        ]
+    );
+
+    // 6. Replace Line Items (Delete All & Insert New)
+    db.execute('DELETE FROM InvoiceLineItem WHERE invoiceId = ?', [invoiceId]);
+    db.execute('DELETE FROM TaxLineItem WHERE invoiceId = ?', [invoiceId]);
+    db.execute('DELETE FROM PackagingLineItem WHERE invoiceId = ?', [invoiceId]);
+    db.execute('DELETE FROM TransportationLineItem WHERE invoiceId = ?', [invoiceId]);
+
+    // Insert New InvoiceLineItems
+    if (invoiceLineItems && invoiceLineItems.length > 0) {
+      for (const item of invoiceLineItems) {
+          const prodRes = db.execute(`SELECT * FROM Product WHERE id = ?`, [item.productId]);
+          const product = (prodRes.rows && prodRes.rows.length > 0) ? prodRes.rows.item(0) : null;
+          const pPrice = item.productPrice !== undefined ? Number(item.productPrice) : (product ? product.price : 0);
+          
+          db.execute(
+              `INSERT INTO InvoiceLineItem (
+                invoiceId, productId, productName, productPrice, 
+                productQuantity, productAmountDiscount, productPercentDiscount
+              ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                  invoiceId, item.productId, item.productName || product?.name, pPrice,
+                  item.productQuantity, item.productAmountDiscount, item.productPercentDiscount
+              ]
+          );
+      }
+    }
+
+    // Insert New Tax, Packing, Transport
+    if (taxLineItems?.length) {
+      for (const tax of taxLineItems) {
+          db.execute(
+              `INSERT INTO TaxLineItem (invoiceId, name, percent, amount, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`,
+              [invoiceId, tax.name, tax.percent, tax.amount, now, now]
+          );
+      }
+    }
+
+    if (packagingLineItems?.length) {
+      for (const p of packagingLineItems) {
+           db.execute(
+              `INSERT INTO PackagingLineItem (invoiceId, name, amount, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`,
+              [invoiceId, p.name, p.amount, now, now]
+          );
+      }
+    }
+
+    if (transportationLineItems?.length) {
+      for (const tr of transportationLineItems) {
+           db.execute(
+              `INSERT INTO TransportationLineItem (invoiceId, name, amount, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`,
+              [invoiceId, tr.name, tr.amount, now, now]
+          );
+      }
+    }
+
+    db.execute('COMMIT');
+    
+    return {
+        success: true,
+        message: 'Invoice Updated Successfully',
+        data: { id: invoiceId }
+    };
+
+  } catch (error: any) {
+    console.error('Update Invoice Failed:', error);
+    try { db.execute('ROLLBACK'); } catch(e) {}
+    throw new Error(error.message);
+  }
+};
+
 
 // --- CREDIT SERVICE (Added) ---
 
@@ -749,11 +976,11 @@ export const generateCreditHtml = async (creditId: number) => {
             width: 210mm;
             min-height: 297mm;
             margin: auto;
-            padding: 20mm;
+            padding: 10mm;
             box-sizing: border-box;
             border: 1px solid #eee;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            line-height: 24px;
+            line-height: 20px;
             font-size: 14px;
             background: white;
           }
@@ -766,7 +993,7 @@ export const generateCreditHtml = async (creditId: number) => {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
           }
           .company-details {
             text-align: right;
@@ -775,7 +1002,7 @@ export const generateCreditHtml = async (creditId: number) => {
           .details {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
           }
           .details div {
             width: 48%;
@@ -783,29 +1010,29 @@ export const generateCreditHtml = async (creditId: number) => {
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 10px;
             table-layout: fixed;
           }
           table th {
             border-bottom: 2px solid #4B00FF;
             text-align: left;
-            padding: 10px 0;
+            padding: 5px 0;
             color: #4B00FF;
             text-transform: uppercase;
             font-size: 13px;
           }
           table td {
-            padding: 8px 0;
+            padding: 4px 0;
             border-bottom: 1px solid #eee;
           }
           .totals {
-            margin-top: 30px;
+            margin-top: 15px;
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
           }
           .totals td {
-            padding: 8px 0;
+            padding: 4px 0;
             border-bottom: 1px solid #eee;
           }
           .totals .total {
@@ -828,11 +1055,7 @@ export const generateCreditHtml = async (creditId: number) => {
               <div>Date Issued: ${new Date(credit.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
             </div>
             <div class="company-details">
-              <strong>YOUR COMPANY</strong><br />
-              1234 Your Street<br />
-              City, California 90210<br />
-              United States<br />
-              1-888-123-4567
+              <strong>Shoe Company</strong>
             </div>
           </div>
 

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import {
   colors,
@@ -47,6 +48,19 @@ const EditInvoicePage: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only refresh if we have a search query or if it's the initial load with default criteria? 
+      // Actually, if we have existing results in 'invoices', ideally we should re-fetch them based on current search params.
+      // If no search params are set, maybe we don't want to fetch everything (could be heavy).
+      // But if the user HAD searched, and comes back, we want to refresh that specific search.
+      
+      if (searchQuery || (searchType === 'date' && dateFrom && dateTo)) {
+          handleSearch();
+      }
+    }, [searchQuery, searchType, dateFrom, dateTo]) // dependency on search params
+  );
 
   const handleSearch = async () => {
     // Basic validation

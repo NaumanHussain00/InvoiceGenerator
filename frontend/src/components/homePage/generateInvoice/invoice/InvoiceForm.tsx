@@ -10,7 +10,8 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import { addInvoice, generateInvoiceHtml } from '../../../../services/OfflineService';
+import { addInvoice, updateInvoice, getInvoiceDetails, generateInvoiceHtml } from '../../../../services/OfflineService';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import CustomerSection from './customerSection/CustomerSection';
 import ProductSection from './productSection/ProductSection';
 import { WebView } from 'react-native-webview';
@@ -44,15 +45,21 @@ export type Tax = { name: string; value: string; type: '%' | '₹' };
 export type PackingItem = { name: string; amount: string };
 export type TransportOption = { name: string; cost: string };
 
+type InvoiceFormRouteProp = RouteProp<{ params: { invoiceId?: number; isEdit?: boolean } }, 'params'>;
+
 const Divider = () => <View style={styles.divider} />;
 
 const InvoiceForm: React.FC = () => {
+  const navigation = useNavigation();
+  const route = useRoute<InvoiceFormRouteProp>();
+  const { invoiceId: editInvoiceId, isEdit } = route.params || {};
+
   const [invoiceData, setInvoiceData] = useState<{
     date: string;
     invoiceId: number | string | null;
   }>({
     date: new Date().toISOString().split('T')[0],
-    invoiceId: null,
+    invoiceId: editInvoiceId || null,
   });
 
   const [customerData, setCustomerData] = useState<CustomerData>({
@@ -108,6 +115,77 @@ const InvoiceForm: React.FC = () => {
 
   const handlePaidChange = (paidByCustomer: string) => {
     setAmountPaid(paidByCustomer);
+  };
+
+  // ---- Load Invoice for Edit ----
+  React.useEffect(() => {
+    if (isEdit && editInvoiceId) {
+       loadInvoiceForEdit(Number(editInvoiceId));
+    }
+  }, [editInvoiceId, isEdit]);
+
+  const loadInvoiceForEdit = async (id: number) => {
+    try {
+        const res = await getInvoiceDetails(id);
+        if(res.success && res.data) {
+            const data = res.data;
+            const customer = data.customer;
+            
+            // Set Customer
+            if(customer) {
+                setCustomerData({
+                    id: customer.id,
+                    name: customer.name,
+                    phone: customer.phone,
+                    firm: customer.firm,
+                    balance: String(customer.balance)
+                });
+            }
+
+            // Set Products
+            const loadedProducts = data.invoiceLineItems.map((item: any, index: number) => ({
+                id: String(item.productId),
+                name: item.productName,
+                price: String(item.productPrice),
+                quantity: String(item.productQuantity),
+                discount: item.productPercentDiscount > 0 ? String(item.productPercentDiscount) : String(item.productAmountDiscount),
+                discountType: item.productPercentDiscount > 0 ? '%' : ('₹' as any),
+                total: (item.productPrice * item.productQuantity) - (item.productPercentDiscount > 0 ? (item.productPrice * item.productQuantity * item.productPercentDiscount / 100) : item.productAmountDiscount) 
+                // Note: accurate total recalculation happens in render/memo, but initializing decent value
+            }));
+            setProducts(loadedProducts);
+            
+            // Taxes
+            setTaxes(data.taxLineItems.map((t: any) => ({
+                name: t.name,
+                value: t.percent > 0 ? String(t.percent) : String(t.amount),
+                type: t.percent > 0 ? '%' : '₹'
+            })));
+
+            // Packing
+            setPackingCharges(data.packagingLineItems.map((p: any) => ({
+                name: p.name,
+                amount: String(p.amount)
+            })));
+
+            // Transport
+            setTransportOptions(data.transportationLineItems.map((t: any) => ({
+                name: t.name,
+                cost: String(t.amount)
+            })));
+
+            // Other fields
+            setNumberOfCartons(data.numberOfCartons ? String(data.numberOfCartons) : '');
+            setAmountDiscount(data.amountDiscount || 0);
+            setPercentDiscount(data.percentDiscount || 0);
+            setAmountPaid(data.paidByCustomer ? String(data.paidByCustomer) : '');
+            
+            setInvoiceData(prev => ({ ...prev, invoiceId: id }));
+        }
+    } catch(error) {
+        Alert.alert('Error', 'Failed to load invoice details');
+        console.error(error);
+    }
   };
 
   // ✅ store customer id when selected
@@ -183,6 +261,7 @@ const InvoiceForm: React.FC = () => {
           p.discountType === '₹' ? Number(p.discount || 0) : 0,
         productPercentDiscount:
           p.discountType === '%' ? Number(p.discount || 0) : 0,
+        productName: p.name,
       })),
       taxLineItems: validTaxes.map(t => ({
         name: t.name,
@@ -204,14 +283,19 @@ const InvoiceForm: React.FC = () => {
       console.log('Saving invoice offline...');
       console.log('Payload:', JSON.stringify(payload, null, 2));
 
-      const res = await addInvoice(payload);
+      let res;
+      if (isEdit && editInvoiceId) {
+          res = await updateInvoice(Number(editInvoiceId), payload);
+      } else {
+          res = await addInvoice(payload);
+      }
 
       if (res.success && res.data?.id) {
         setInvoiceData(prev => ({
           ...prev,
           invoiceId: res.data.id, 
         }));
-        Alert.alert('Success', `Invoice saved locally!\n\nInvoice ID: ${res.data.id}`);
+        Alert.alert('Success', `Invoice ${isEdit ? 'updated' : 'saved'} locally!\n\nInvoice ID: ${res.data.id}`);
         console.log('Saved Invoice ID (Offline):', res.data.id);
       } else {
         Alert.alert('Error', 'Failed to save invoice locally. No ID returned.');
