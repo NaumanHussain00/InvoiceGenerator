@@ -45,12 +45,7 @@ const HomeScreen: React.FC = () => {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Management</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('EditInvoice')}
-        >
-          <Text style={styles.buttonText}>📝 Edit Invoice</Text>
-        </TouchableOpacity>
+
 
         <TouchableOpacity
           style={styles.button}
