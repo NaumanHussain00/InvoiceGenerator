@@ -61,14 +61,7 @@ export const addCustomer = async (data: any) => {
       throw new Error(`Customer with Phone "${phone}" already exists.\nExisting Customer: ${existing.name} (${existing.firm || 'No Firm'})`);
     }
 
-    // 2. Check Firm (if provided)
-    if (firm && firm.trim()) {
-      const checkFirm = db.execute(`SELECT * FROM Customer WHERE firm = '${safeStr(firm)}'`);
-      if (checkFirm.rows && checkFirm.rows.length > 0) {
-        const existing = checkFirm.rows.item(0);
-        throw new Error(`Customer with Firm "${firm}" already exists.\nExisting Customer: ${existing.name} (Phone: ${existing.phone})`);
-      }
-    }
+
 
     const result = db.execute(
       `INSERT INTO Customer (name, phone, firm, address, balance, createdAt, updatedAt) 

@@ -844,17 +844,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tableCellIndex: {
-    width: '10%',
+    width: '8%',
   },
   tableCellName: {
-    width: '40%',
+    width: '37%',
     textAlign: 'left',
   },
   tableCellPrice: {
     width: '20%',
   },
   tableCellQty: {
-    width: '10%',
+    width: '15%',
   },
   tableCellTotal: {
     width: '20%',

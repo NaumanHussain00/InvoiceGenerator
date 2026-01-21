@@ -6,13 +6,66 @@ const db = open({ name: 'invoice_app.db' });
 export const initDatabase = () => {
   console.log('[Database] Initializing tables...');
 
+  // Migrations Table
+  db.execute(`
+    CREATE TABLE IF NOT EXISTS Migrations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      appliedAt TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Migration 001: Remove Unique Constraint on Firm
+  try {
+    const migration001 = '001_remove_firm_unique_constraint';
+    const mCheck = db.execute(`SELECT * FROM Migrations WHERE name = '${migration001}'`);
+    if (!mCheck.rows || mCheck.rows.length === 0) {
+        console.log('[Database] Checking migration: ' + migration001);
+        const tableCheck = db.execute(`SELECT name FROM sqlite_master WHERE type='table' AND name='Customer'`);
+        if (tableCheck.rows && tableCheck.rows.length > 0) {
+             // Existing Customer table, migrate it
+             console.log('[Database] Applying migration 001...');
+             try {
+                 db.execute('BEGIN TRANSACTION');
+                 db.execute('ALTER TABLE Customer RENAME TO Customer_old');
+                 db.execute(`
+                      CREATE TABLE Customer (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        phone TEXT UNIQUE NOT NULL,
+                        firm TEXT,
+                        address TEXT,
+                        balance REAL NOT NULL DEFAULT 0,
+                        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                        updatedAt TEXT
+                      );
+                 `);
+                 db.execute('INSERT INTO Customer SELECT * FROM Customer_old');
+                 db.execute('DROP TABLE Customer_old');
+                 db.execute('INSERT INTO Migrations (name) VALUES (?)', [migration001]);
+                 db.execute('COMMIT');
+                 console.log('[Database] Migration 001 applied successfully.');
+             } catch (e: any) {
+                 console.error('[Database] Migration 001 failed:', e);
+                 try { db.execute('ROLLBACK'); } catch (r) {}
+                 throw e; 
+             }
+        } else {
+            // New install, just mark migration as done
+             db.execute('INSERT INTO Migrations (name) VALUES (?)', [migration001]);
+        }
+    }
+  } catch(e) {
+      console.error('Migration Error:', e);
+  }
+
   // Customer Table
   db.execute(`
     CREATE TABLE IF NOT EXISTS Customer (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       phone TEXT UNIQUE NOT NULL,
-      firm TEXT UNIQUE,
+      firm TEXT,
       address TEXT,
       balance REAL NOT NULL DEFAULT 0,
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
