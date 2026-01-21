@@ -29,7 +29,8 @@ interface CustomerSectionProps {
   customerData: CustomerData;
   setCustomerData: React.Dispatch<React.SetStateAction<CustomerData>>;
   resetTrigger?: boolean;
-  onSelectCustomerId?: (id: number | string) => void; // 👈 new prop
+  onSelectCustomerId?: (id: number | string) => void;
+  disabled?: boolean;
 }
 
 const STORAGE_KEY = 'customer_form_data';
@@ -39,11 +40,12 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
   setCustomerData,
   resetTrigger,
   onSelectCustomerId,
+  disabled = false,
 }) => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isEditable, setIsEditable] = useState(true); // 👈 controls edit
+  const [isEditable, setIsEditable] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [errors, setErrors] = useState({
     name: '',
@@ -186,9 +188,11 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
     <View style={styles.card}>
       <View style={{ marginBottom: scale(8) }}>
         <Text style={styles.header}>Customer Information</Text>
-        <TouchableOpacity onPress={() => setShowAddModal(true)} style={[styles.headerAddBtn, { alignSelf: 'flex-start' }]}>
-          <Text style={styles.headerAddBtnText}>+ Add New Member</Text>
-        </TouchableOpacity>
+        {!disabled && (
+          <TouchableOpacity onPress={() => setShowAddModal(true)} style={[styles.headerAddBtn, { alignSelf: 'flex-start' }]}>
+            <Text style={styles.headerAddBtnText}>+ Add New Member</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <View
         style={{
@@ -202,7 +206,7 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
       <View style={styles.inputContainer}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={styles.label}>Name *</Text>
-          {!isEditable && (
+          {!isEditable && !disabled && (
             <TouchableOpacity
               onPress={() => {
                 setIsEditable(true);
@@ -216,8 +220,8 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
           )}
         </View>
         <TextInput
-          editable={isEditable}
-          style={[styles.input, !isEditable && styles.disabledInput]}
+          editable={isEditable && !disabled}
+          style={[styles.input, (!isEditable || disabled) && styles.disabledInput]}
           value={customerData.name}
           onFocus={handleNameFocus}
           onChangeText={text => setCustomerData(p => ({ ...p, name: text }))}

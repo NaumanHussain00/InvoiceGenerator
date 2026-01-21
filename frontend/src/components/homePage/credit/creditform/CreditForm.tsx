@@ -173,6 +173,7 @@ const CreditForm: React.FC<any> = ({ route, navigation }) => {
         customerData={customerData}
         setCustomerData={setCustomerData}
         onSelectCustomerId={setCustomerId}
+        disabled={isEdit}
       />
 
       <View style={styles.card}>

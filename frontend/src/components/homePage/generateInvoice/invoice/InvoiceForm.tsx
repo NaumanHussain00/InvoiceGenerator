@@ -353,6 +353,7 @@ const InvoiceForm: React.FC = () => {
                 setCustomerData={setCustomerData}
                 resetTrigger={false}
                 onSelectCustomerId={handleSelectCustomerId}
+                disabled={isEdit}
               />
             </View>
             <Divider />
