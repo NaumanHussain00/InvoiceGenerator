@@ -685,6 +685,7 @@ export const generateInvoiceHtml = async (invoiceId: number) => {
         ${transportationRows}
         <tr class="total"><td>Total</td><td></td><td></td><td>${formatCurrency(invoice.finalAmount)}</td></tr>
         <tr><td>Amount Paid by Customer</td><td></td><td></td><td>${formatCurrency(invoice.paidByCustomer)}</td></tr>
+        <tr><td>Previous Balance</td><td></td><td></td><td>${formatCurrency(invoice.custPrevBalance)}</td></tr>
         <tr class="highlight"><td>Remaining Balance</td><td></td><td></td><td>${formatCurrency(invoice.remainingBalance)}</td></tr>
       </table>
     </div>
