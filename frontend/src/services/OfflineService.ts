@@ -1,7 +1,7 @@
 import db from './DatabaseService';
 import Share from 'react-native-share';
 import RNFetchBlob from 'rn-fetch-blob';
-import { zip } from 'react-native-zip-archive';
+import { zip, unzip } from 'react-native-zip-archive';
 import { Platform, Alert } from 'react-native';
 
 // Helper to escape strings for SQL
@@ -54,9 +54,20 @@ export const addCustomer = async (data: any) => {
   const { name, phone, firm, address, balance } = data;
   try {
     // Check duplicates
-    const check = db.execute(`SELECT id FROM Customer WHERE phone = '${safeStr(phone)}' OR firm = '${safeStr(firm)}'`);
-    if (check.rows && check.rows.length > 0) {
-      throw new Error('Customer with this Phone or Firm already exists');
+    // 1. Check Phone
+    const checkPhone = db.execute(`SELECT * FROM Customer WHERE phone = '${safeStr(phone)}'`);
+    if (checkPhone.rows && checkPhone.rows.length > 0) {
+      const existing = checkPhone.rows.item(0);
+      throw new Error(`Customer with Phone "${phone}" already exists.\nExisting Customer: ${existing.name} (${existing.firm || 'No Firm'})`);
+    }
+
+    // 2. Check Firm (if provided)
+    if (firm && firm.trim()) {
+      const checkFirm = db.execute(`SELECT * FROM Customer WHERE firm = '${safeStr(firm)}'`);
+      if (checkFirm.rows && checkFirm.rows.length > 0) {
+        const existing = checkFirm.rows.item(0);
+        throw new Error(`Customer with Firm "${firm}" already exists.\nExisting Customer: ${existing.name} (Phone: ${existing.phone})`);
+      }
     }
 
     const result = db.execute(
@@ -139,6 +150,12 @@ export const getProducts = async () => {
 export const addProduct = async (data: any) => {
   const { name, price } = data;
   try {
+    // Check duplicates
+    const check = db.execute(`SELECT * FROM Product WHERE name = '${safeStr(name)}'`);
+    if (check.rows && check.rows.length > 0) {
+        throw new Error(`Product "${name}" already exists.`);
+    }
+
     const result = db.execute(
       `INSERT INTO Product (name, price, createdAt, updatedAt) VALUES (?, ?, ?, ?)`,
       [name, price, getISTTime(), getISTTime()]
@@ -343,6 +360,19 @@ export const voidInvoice = async (invoiceId: number) => {
 
      // 3. Update Customer Balance
      db.execute(`UPDATE Customer SET balance = ? WHERE id = ?`, [newBalance, customer.id]);
+
+     // Propagate balance change to subsequent invoices and credits
+     // balance decreased by 'adjustment', so we subtract 'adjustment' from future records
+     if (Math.abs(adjustment) > 0.001) {
+        db.execute(
+            `UPDATE Invoice SET custPrevBalance = custPrevBalance - ?, remainingBalance = remainingBalance - ? WHERE customerId = ? AND createdAt > ?`,
+            [adjustment, adjustment, customerId, invoice.createdAt]
+        );
+        db.execute(
+            `UPDATE Credit SET previousBalance = previousBalance - ?, finalBalance = finalBalance - ? WHERE customerId = ? AND createdAt > ?`,
+            [adjustment, adjustment, customerId, invoice.createdAt]
+        );
+     }
 
      // 4. Update Invoice Status
      db.execute(`UPDATE Invoice SET status = 'VOID', updatedAt = ? WHERE id = ?`, [getISTTime(), invoiceId]);
@@ -792,6 +822,19 @@ export const updateInvoice = async (invoiceId: number, data: any) => {
     // 4. Update Customer Balance
     db.execute('UPDATE Customer SET balance = ? WHERE id = ?', [newCustomerBalance, customerId]);
 
+    // Propagate balance change to subsequent invoices and credits
+    const adjustment = newEffect - oldEffect;
+    if (Math.abs(adjustment) > 0.001) {
+        db.execute(
+            `UPDATE Invoice SET custPrevBalance = custPrevBalance + ?, remainingBalance = remainingBalance + ? WHERE customerId = ? AND createdAt > ?`,
+            [adjustment, adjustment, customerId, oldInvoice.createdAt]
+        );
+        db.execute(
+            `UPDATE Credit SET previousBalance = previousBalance + ?, finalBalance = finalBalance + ? WHERE customerId = ? AND createdAt > ?`,
+            [adjustment, adjustment, customerId, oldInvoice.createdAt]
+        );
+    }
+
     // 5. Update Invoice Record
     const now = getISTTime();
     db.execute(
@@ -1100,6 +1143,176 @@ export const generateCreditHtml = async (creditId: number) => {
   }
 };
 
+// --- CREDIT SERVICE (Added) ---
+
+export const voidCredit = async (creditId: number) => {
+  try {
+     db.execute('BEGIN TRANSACTION');
+
+     // 1. Fetch Credit
+     const res = db.execute(`SELECT * FROM Credit WHERE id = ?`, [creditId]);
+     if (res.rows?.length === 0) {
+         db.execute('ROLLBACK');
+         throw new Error('Credit note not found');
+     }
+     const credit = res.rows?.item(0);
+
+     if (credit.status === 'VOID') {
+         db.execute('ROLLBACK');
+         throw new Error('Credit note is already voided');
+     }
+
+     // 2. Fetch Customer
+     const custRes = db.execute(`SELECT * FROM Customer WHERE id = ?`, [credit.customerId]);
+     if (custRes.rows?.length === 0) {
+          db.execute('ROLLBACK');
+          throw new Error('Customer not found');
+     }
+     const customer = custRes.rows?.item(0);
+
+     // Credit reduces balance (payment). Voiding it increases balance (debt comes back).
+     const newBalance = customer.balance + credit.amountPaidByCustomer;
+
+     // 3. Update Customer Balance
+     db.execute(`UPDATE Customer SET balance = ? WHERE id = ?`, [newBalance, customer.id]);
+
+     // Propagate balance change to subsequent invoices and credits
+     // balance increased by 'amountPaidByCustomer', so we add it to future records
+     const adjustment = credit.amountPaidByCustomer;
+     if (Math.abs(adjustment) > 0.001) {
+        db.execute(
+            `UPDATE Invoice SET custPrevBalance = custPrevBalance + ?, remainingBalance = remainingBalance + ? WHERE customerId = ? AND createdAt > ?`,
+            [adjustment, adjustment, credit.customerId, credit.createdAt]
+        );
+        db.execute(
+            `UPDATE Credit SET previousBalance = previousBalance + ?, finalBalance = finalBalance + ? WHERE customerId = ? AND createdAt > ?`,
+            [adjustment, adjustment, credit.customerId, credit.createdAt]
+        );
+     }
+
+     // 4. Update Credit Status
+     db.execute(`UPDATE Credit SET status = 'VOID', updatedAt = ? WHERE id = ?`, [getISTTime(), creditId]);
+
+     db.execute('COMMIT');
+
+     return {
+         success: true,
+         message: 'Credit Note Voided Successfully',
+         newBalance
+     };
+
+  } catch(error: any) {
+      console.error('Void Credit Failed:', error);
+      try { db.execute('ROLLBACK'); } catch (e) {}
+      throw new Error(error.message);
+  }
+};
+
+export const getCreditDetails = async (creditId: number) => {
+    try {
+        const res = db.execute('SELECT * FROM Credit WHERE id = ?', [creditId]);
+        if (res.rows?.length === 0) throw new Error('Credit Note Not Found');
+        const credit = res.rows?.item(0);
+
+        const custRes = db.execute('SELECT * FROM Customer WHERE id = ?', [credit.customerId]);
+        const customer = (custRes.rows && custRes.rows.length > 0) ? custRes.rows.item(0) : null;
+
+        return {
+            success: true,
+            data: {
+                ...credit,
+                customer
+            }
+        };
+    } catch (error: any) {
+        throw new Error(error.message);
+    }
+};
+
+export const updateCredit = async (creditId: number, amount: number) => {
+  try {
+    db.execute('BEGIN TRANSACTION');
+
+    // 1. Fetch Existing Credit
+    const oldRes = db.execute('SELECT * FROM Credit WHERE id = ?', [creditId]);
+    if (oldRes.rows?.length === 0) {
+        db.execute('ROLLBACK');
+        throw new Error('Credit Note Not Found');
+    }
+    const oldCredit = oldRes.rows?.item(0);
+    const customerId = oldCredit.customerId;
+
+    // 2. Fetch Customer
+    const custRes = db.execute('SELECT * FROM Customer WHERE id = ?', [customerId]);
+    if (custRes.rows?.length === 0) {
+        db.execute('ROLLBACK');
+        throw new Error('Customer Not Found');
+    }
+    const customer = custRes.rows?.item(0);
+
+    // 3. Calculate Balance Adjustment
+    // Old Effect: Balance decreased by oldCredit.amountPaidByCustomer
+    // New Effect: Balance decreases by new amount
+    // Adjustment to Current Balance: (OldAmount - NewAmount)
+    // Example: Old=100 (bal -100), New=150 (bal -150). Change = -50. 
+    // Logic: Current + 100 - 150 = Current - 50.
+    
+    const adjustment = oldCredit.amountPaidByCustomer - amount;
+    const newCustomerBalance = customer.balance + adjustment;
+
+    // 4. Update Customer Balance
+    db.execute('UPDATE Customer SET balance = ? WHERE id = ?', [newCustomerBalance, customerId]);
+
+    // Propagate balance change to subsequent invoices and credits
+    // Since balance changed by 'adjustment', all future prevBalance and finalBalance shift by 'adjustment'.
+    if (Math.abs(adjustment) > 0.001) {
+        db.execute(
+            `UPDATE Invoice SET custPrevBalance = custPrevBalance + ?, remainingBalance = remainingBalance + ? WHERE customerId = ? AND createdAt > ?`,
+            [adjustment, adjustment, customerId, oldCredit.createdAt]
+        );
+        db.execute(
+            `UPDATE Credit SET previousBalance = previousBalance + ?, finalBalance = finalBalance + ? WHERE customerId = ? AND createdAt > ?`,
+            [adjustment, adjustment, customerId, oldCredit.createdAt]
+        );
+    }
+
+    // 5. Update Credit Record
+    const now = getISTTime();
+    // We also need to update finalBalance of THIS credit.
+    // finalBalance = previousBalance (unchanged historically?) - newAmount
+    // Wait, if we assume previousBalance is fixed at that point in time (snapshot), then yes.
+    // But conceptually, previousBalance is arguably same since we are editing THIS transaction.
+    
+    // However, if we edited a PREVIOUS transaction, the ripple updates 'previousBalance' of THIS transaction?
+    // No, we are editing THIS transaction. Its 'previousBalance' is determined by what happened BEFORE it.
+    // So 'previousBalance' stays same (unless we date shifted, which we aren't).
+    
+    const newFinalBalance = oldCredit.previousBalance - amount;
+
+    db.execute(
+        `UPDATE Credit SET 
+            amountPaidByCustomer=?, finalBalance=?, updatedAt=?
+         WHERE id=?`,
+        [
+            amount, newFinalBalance, now, creditId
+        ]
+    );
+
+    db.execute('COMMIT');
+    
+    return {
+        success: true,
+        message: 'Credit Updated Successfully',
+        data: { id: creditId }
+    };
+
+  } catch (error: any) {
+    console.error('Update Credit Failed:', error);
+    try { db.execute('ROLLBACK'); } catch(e) {}
+    throw new Error(error.message);
+  }
+};
+
 // --- LEDGER & HISTORY ---
 
 export const getLedgerOverview = async () => {
@@ -1346,6 +1559,134 @@ export const exportAllDataToCSV = async () => {
 
     } catch (error: any) {
         if(error.message === 'User did not share') return { success: false, message: 'Cancelled' };
+        throw new Error(error.message);
+    }
+};
+
+const parseCSV = (text: string) => {
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentVal = '';
+    let insideQuote = false;
+    
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i+1];
+        
+        if (char === '"') {
+            if (insideQuote && nextChar === '"') {
+                currentVal += '"';
+                i++;
+            } else {
+                insideQuote = !insideQuote;
+            }
+        } else if (char === ',' && !insideQuote) {
+            currentRow.push(currentVal);
+            currentVal = '';
+        } else if ((char === '\r' || char === '\n') && !insideQuote) {
+            if (char === '\r' && nextChar === '\n') i++;
+            if (currentRow.length > 0 || currentVal.length > 0) {
+                 currentRow.push(currentVal);
+                 rows.push(currentRow);
+            }
+            currentRow = [];
+            currentVal = '';
+        } else {
+            currentVal += char;
+        }
+    }
+    if (currentRow.length > 0 || currentVal.length > 0) {
+        currentRow.push(currentVal);
+        rows.push(currentRow);
+    }
+    return rows;
+};
+
+export const importAllDataFromZip = async (uri: string) => {
+    try {
+        const timestamp = Date.now();
+        const tempDir = `${RNFetchBlob.fs.dirs.CacheDir}/import_${timestamp}`;
+        const zipFile = `${RNFetchBlob.fs.dirs.CacheDir}/import_${timestamp}.zip`;
+
+        if (await RNFetchBlob.fs.exists(tempDir)) {
+             await RNFetchBlob.fs.unlink(tempDir);
+        }
+        await RNFetchBlob.fs.mkdir(tempDir);
+
+        // Handle Content URI (Android) or File URI
+        if (uri.startsWith('content://')) {
+             const data = await RNFetchBlob.fs.readFile(uri, 'base64');
+             await RNFetchBlob.fs.writeFile(zipFile, data, 'base64');
+        } else {
+             const cleanUri = uri.replace('file://', '');
+             await RNFetchBlob.fs.cp(cleanUri, zipFile);
+        }
+
+        const unzipPath = tempDir; // zip-archive unzips into this folder
+        await unzip(zipFile, unzipPath);
+
+        const tables = [
+            'Customer', 
+            'Product', 
+            'Invoice', 
+            'Credit', 
+            'InvoiceLineItem', 
+            'TaxLineItem', 
+            'PackagingLineItem', 
+            'TransportationLineItem'
+        ];
+
+        db.execute('BEGIN TRANSACTION');
+
+        for (const table of tables) {
+            const files = await RNFetchBlob.fs.ls(unzipPath);
+            const csvFile = files.find(f => f.startsWith(table) && f.endsWith('.csv'));
+
+            // Clear table regardless to ensure full restore (empty if file missing)
+            db.execute(`DELETE FROM ${table}`);
+
+            if (!csvFile) {
+                continue;
+            }
+
+            const content = await RNFetchBlob.fs.readFile(`${unzipPath}/${csvFile}`, 'utf8');
+            const rows = parseCSV(content);
+
+            if (rows.length < 2) {
+                continue;
+            }
+
+            const headers = rows[0];
+            const dataRows = rows.slice(1);
+
+            const placeholders = headers.map(() => '?').join(',');
+            const columns = headers.map(h => `"${h}"`).join(','); // Quote column names for safety
+
+            for (const row of dataRows) {
+                if(row.length !== headers.length) continue; 
+                
+                const values = row.map(v => v === '' ? null : v);
+                
+                db.execute(
+                    `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`,
+                    values
+                );
+            }
+        }
+
+        db.execute('COMMIT');
+        
+        // Cleanup
+        try {
+            await RNFetchBlob.fs.unlink(tempDir);
+            await RNFetchBlob.fs.unlink(zipFile);
+        } catch(e) {}
+
+        return { success: true, message: 'Data Imported Successfully' };
+
+    } catch (error: any) {
+        try { db.execute('ROLLBACK'); } catch(e) {}
+        console.error('Import Failed:', error);
         throw new Error(error.message);
     }
 };

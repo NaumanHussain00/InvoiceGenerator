@@ -17,7 +17,7 @@ export type RootStackParamList = {
   Home: undefined;
   AddCustomer: undefined;
   InvoiceForm: undefined;
-  CreditForm: undefined;
+  CreditForm: { creditId?: number; isEdit?: boolean } | undefined;
   AddProduct: undefined;
   Ledger: undefined;
   EditInvoice: undefined;

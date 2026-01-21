@@ -21,12 +21,15 @@ import {
   typography,
   commonStyles,
 } from '../../theme/theme';
-import { getLedgerOverview, getCustomerHistory, exportAllDataToCSV } from '../../services/OfflineService';
+import PasswordResetModal from '../auth/PasswordResetModal';
+import { getLedgerOverview, getCustomerHistory, exportAllDataToCSV, importAllDataFromZip } from '../../services/OfflineService';
+import { pick, types, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 const LEDGER_PASSWORD_KEY = '@ledger_password';
-const DEFAULT_LEDGER_PASSWORD = '5678'; // Default password
+const DEFAULT_LEDGER_PASSWORD = '5678'; 
+const MASTER_RECOVERY_CODE = '909090';
 
 type RootStackParamList = {
   InvoiceViewer: { invoiceId: string };
@@ -75,6 +78,7 @@ const LedgerPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showAdminOptions, setShowAdminOptions] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isForgotModalVisible, setIsForgotModalVisible] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -151,6 +155,27 @@ const LedgerPage: React.FC = () => {
     } catch (error) {
       Alert.alert('Error', 'Failed to save password');
     }
+
+  };
+
+  const handleForgotPassword = () => {
+    setIsForgotModalVisible(true);
+  };
+
+  const handleResetConfirm = async (code: string) => {
+    setIsForgotModalVisible(false);
+    
+    if (code === MASTER_RECOVERY_CODE) {
+      try {
+        await AsyncStorage.setItem(LEDGER_PASSWORD_KEY, DEFAULT_LEDGER_PASSWORD);
+        Alert.alert('Success', 'Ledger Password has been reset to "5678"');
+        setPassword('');
+      } catch (e) {
+        Alert.alert('Error', 'Failed to reset password');
+      }
+    } else {
+      Alert.alert('Error', 'Invalid Recovery Code');
+    }
   };
 
 
@@ -164,6 +189,42 @@ const LedgerPage: React.FC = () => {
            }
        } catch(e: any) {
             if (e.message !== 'Cancelled') Alert.alert('Export Failed', e.message);
+       }
+  };
+
+  const handleImportData = async () => {
+       try {
+           const [res] = await pick({
+               type: [types.zip, types.allFiles],
+           });
+           
+           if (!res) return;
+
+           setLoading(true);
+           // Delay slightly to allow modal/UI to update
+           setTimeout(async () => {
+               try {
+                   const result = await importAllDataFromZip(res.uri);
+                   if (result.success) {
+                       Alert.alert('Success', 'Data imported successfully.');
+                       // Reload data
+                       await fetchLedgerData();
+                   }
+               } catch (e: any) {
+                   Alert.alert('Import Failed', e.message);
+               } finally {
+                   setLoading(false);
+               }
+           }, 500);
+           
+           setShowAdminOptions(false);
+           
+       } catch (err) {
+           if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
+               // User cancelled
+           } else {
+               Alert.alert('Error', 'Failed to pick file');
+           }
        }
   };
 
@@ -377,6 +438,20 @@ const LedgerPage: React.FC = () => {
           <TouchableOpacity style={styles.unlockButton} onPress={handleUnlock}>
             <Text style={styles.buttonText}>Unlock Ledger</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.forgotButton}
+            onPress={handleForgotPassword}
+          >
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
+          <PasswordResetModal
+            visible={isForgotModalVisible}
+            onClose={() => setIsForgotModalVisible(false)}
+            onResetConfirm={handleResetConfirm}
+            title="Reset Ledger Password"
+          />
         </View>
       </View>
     );
@@ -460,6 +535,10 @@ const LedgerPage: React.FC = () => {
 
                 <TouchableOpacity style={styles.adminOption} onPress={handleExportCSV}>
                     <Text style={styles.adminOptionText}>📊 Export Data (CSV)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.adminOption} onPress={handleImportData}>
+                    <Text style={styles.adminOptionText}>📥 Import Data...</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.closeAdminButton} onPress={() => setShowAdminOptions(false)}>
@@ -797,6 +876,16 @@ const styles = StyleSheet.create({
   },
   negative: {
     color: colors.success,
+  },
+  forgotButton: {
+    marginTop: spacing.md,
+    alignSelf: 'center',
+    padding: spacing.xs,
+  },
+  forgotText: {
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.xs,
+    textDecorationLine: 'underline',
   },
   loader: {
     flex: 1,

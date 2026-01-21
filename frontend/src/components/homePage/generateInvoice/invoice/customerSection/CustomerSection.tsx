@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { searchCustomers, getCustomersInfo } from '../../../../../services/OfflineService';
+import { searchCustomers, getCustomersInfo, addCustomer } from '../../../../../services/OfflineService';
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Modal,
+  Alert,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -133,9 +136,60 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
     }
   };
 
+  // --- Add New Customer Logic ---
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    phone: '',
+    firm: '',
+    address: '',
+    balance: '',
+  });
+
+  const handleSaveNewCustomer = async () => {
+    const { name, phone, firm, address, balance } = newCustomer;
+
+    if (!name.trim()) {
+      Alert.alert('Validation Error', 'Please enter customer name.');
+      return;
+    }
+    if (!phone.trim() || !/^[0-9]{10}$/.test(phone)) {
+      Alert.alert('Validation Error', 'Please enter a valid 10-digit phone number.');
+      return;
+    }
+
+    try {
+      const payload = {
+        name: name.trim(),
+        phone: phone.trim(),
+        firm: firm.trim(),
+        address: address.trim(),
+        balance: Number(balance) || 0,
+      };
+
+      const res = await addCustomer(payload);
+      if (res.success && res.data) {
+        Alert.alert('Success', 'Customer added successfully!');
+        // Auto-select
+        handleSelectCustomer(res.data);
+        setShowAddModal(false);
+        setNewCustomer({ name: '', phone: '', firm: '', address: '', balance: '' });
+      } else {
+        Alert.alert('Error', res.message || 'Failed to add customer');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    }
+  };
+
   return (
     <View style={styles.card}>
-      <Text style={styles.header}>Customer Information</Text>
+      <View style={{ marginBottom: scale(8) }}>
+        <Text style={styles.header}>Customer Information</Text>
+        <TouchableOpacity onPress={() => setShowAddModal(true)} style={[styles.headerAddBtn, { alignSelf: 'flex-start' }]}>
+          <Text style={styles.headerAddBtnText}>+ Add New Member</Text>
+        </TouchableOpacity>
+      </View>
       <View
         style={{
           borderBottomWidth: 1,
@@ -206,7 +260,18 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
                   showsVerticalScrollIndicator={true}
                   style={{ maxHeight: scale(250) }}
                   ListEmptyComponent={
-                    <Text style={styles.noData}>No customers found</Text>
+                    <View style={{ padding: scale(12), alignItems: 'center' }}>
+                      <Text style={[styles.noData, { padding: 0, marginBottom: scale(8) }]}>No customers found</Text>
+                      <TouchableOpacity
+                        style={styles.changeBtn}
+                        onPress={() => {
+                          setShowDropdown(false);
+                          setShowAddModal(true);
+                        }}
+                      >
+                         <Text style={styles.changeBtnText}>+ Add New Customer</Text>
+                      </TouchableOpacity>
+                    </View>
                   }
                 />
               </>
@@ -250,6 +315,94 @@ const CustomerSection: React.FC<CustomerSectionProps> = ({
           placeholderTextColor="#94a3b8"
         />
       </View>
+
+      {/* Add Customer Modal */}
+      <Modal visible={showAddModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ScrollView>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalHeader}>Add New Member</Text>
+                <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                  <Text style={{ fontSize: scale(18), color: '#64748b' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: scale(4) }}>
+                  <Text style={styles.label}>Name *</Text>
+                  <Text style={styles.charCount}>{50 - newCustomer.name.length} chars left</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={newCustomer.name}
+                  onChangeText={t => setNewCustomer(prev => ({ ...prev, name: t }))}
+                  placeholder="John Doe"
+                  maxLength={50}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: scale(4) }}>
+                  <Text style={styles.label}>Phone *</Text>
+                  <Text style={styles.charCount}>{10 - newCustomer.phone.length} digits left</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={newCustomer.phone}
+                  onChangeText={t => setNewCustomer(prev => ({ ...prev, phone: t }))}
+                  placeholder="9876543210"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: scale(4) }}>
+                  <Text style={styles.label}>Firm (Optional)</Text>
+                  <Text style={styles.charCount}>{50 - newCustomer.firm.length} chars left</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={newCustomer.firm}
+                  onChangeText={t => setNewCustomer(prev => ({ ...prev, firm: t }))}
+                  placeholder="Acme Corp"
+                  maxLength={50}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: scale(4) }}>
+                  <Text style={styles.label}>Address</Text>
+                  <Text style={styles.charCount}>{50 - newCustomer.address.length} chars left</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  value={newCustomer.address}
+                  onChangeText={t => setNewCustomer(prev => ({ ...prev, address: t }))}
+                  placeholder="City, State"
+                  maxLength={50}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Balance</Text>
+                <TextInput
+                  style={styles.input}
+                  value={newCustomer.balance}
+                  onChangeText={t => setNewCustomer(prev => ({ ...prev, balance: t }))}
+                  placeholder="0"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveNewCustomer}>
+                <Text style={styles.saveBtnText}>Save & Select</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -354,6 +507,57 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: scale(12),
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: scale(20),
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: scale(10),
+    padding: scale(16),
+    maxHeight: '90%',
+    elevation: 5,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: scale(16),
+  },
+  modalHeader: {
+    fontSize: scale(18),
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  saveBtn: {
+    backgroundColor: '#3b82f6',
+    paddingVertical: scale(12),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    marginTop: scale(16),
+  },
+  saveBtnText: {
+    color: '#fff',
+    fontSize: scale(16),
+    fontWeight: '700',
+  },
+  headerAddBtn: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(6),
+    borderRadius: scale(6),
+  },
+  headerAddBtnText: {
+    color: '#fff',
+    fontSize: scale(12),
+    fontWeight: '600',
+  },
+  charCount: {
+    fontSize: scale(11),
+    color: '#64748b',
   },
 });
 

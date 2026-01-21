@@ -17,9 +17,11 @@ import {
   typography,
   commonStyles,
 } from '../../theme/theme';
+import PasswordResetModal from './PasswordResetModal';
 
 const APP_PASSWORD_KEY = '@app_password';
-const DEFAULT_APP_PASSWORD = '1234'; // Default password
+const DEFAULT_APP_PASSWORD = '1234'; 
+const MASTER_RECOVERY_CODE = '909090'; // Admin recovery code
 
 interface AppLockScreenProps {
   onUnlock: () => void;
@@ -29,6 +31,7 @@ const AppLockScreen: React.FC<AppLockScreenProps> = ({ onUnlock }) => {
   const [password, setPassword] = useState('');
   const [isSettingPassword, setIsSettingPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isForgotModalVisible, setIsForgotModalVisible] = useState(false);
 
   useEffect(() => {
     checkPasswordExists();
@@ -96,6 +99,27 @@ const AppLockScreen: React.FC<AppLockScreenProps> = ({ onUnlock }) => {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to verify password');
+    }
+
+  };
+
+  const handleForgotPassword = () => {
+    setIsForgotModalVisible(true);
+  };
+
+  const handleResetConfirm = async (code: string) => {
+    setIsForgotModalVisible(false);
+    
+    if (code === MASTER_RECOVERY_CODE) {
+      try {
+        await AsyncStorage.setItem(APP_PASSWORD_KEY, DEFAULT_APP_PASSWORD);
+        Alert.alert('Success', 'Password has been reset to "1234"');
+        setPassword('');
+      } catch (e) {
+        Alert.alert('Error', 'Failed to reset password');
+      }
+    } else {
+      Alert.alert('Error', 'Invalid Recovery Code');
     }
   };
 
@@ -171,6 +195,21 @@ const AppLockScreen: React.FC<AppLockScreenProps> = ({ onUnlock }) => {
         >
           <Text style={styles.linkText}>Change Password</Text>
         </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.forgotButton}
+          onPress={handleForgotPassword}
+        >
+          <Text style={styles.forgotText}>Forgot Password?</Text>
+        </TouchableOpacity>
+
+
+        <PasswordResetModal
+          visible={isForgotModalVisible}
+          onClose={() => setIsForgotModalVisible(false)}
+          onResetConfirm={handleResetConfirm}
+          title="Reset App Password"
+        />
       </View>
     </View>
   );
@@ -241,6 +280,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: typography.fontSize.sm,
     textDecorationLine: 'underline',
+  },
+  forgotButton: {
+    marginTop: spacing.xs,
+    padding: spacing.xs,
+  },
+  forgotText: {
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.xs,
+    textAlign: 'center',
   },
 });
 

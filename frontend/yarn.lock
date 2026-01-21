@@ -1682,6 +1682,11 @@
   resolved "https://registry.npmjs.org/@react-native-community/clipboard/-/clipboard-1.5.1.tgz"
   integrity sha512-AHAmrkLEH5UtPaDiRqoULERHh3oNv7Dgs0bTC0hO5Z2GdNokAMPT5w8ci8aMcRemcwbtdHjxChgtjbeA38GBdA==
 
+"@react-native-documents/picker@^12.0.0":
+  version "12.0.0"
+  resolved "https://registry.npmjs.org/@react-native-documents/picker/-/picker-12.0.0.tgz"
+  integrity sha512-7kdUaF0Kin3F6OBixHTGY7mMHG7JAejbnAWUQltC8v2xmkPN+CMli3i4sm62ZIEhYzf3QX+fCe/3kFBcr+Vb6g==
+
 "@react-native-picker/picker@^2.11.4":
   version "2.11.4"
   resolved "https://registry.npmjs.org/@react-native-picker/picker/-/picker-2.11.4.tgz"
@@ -6648,7 +6653,7 @@ react-native-zip-archive@^7.0.2:
   resolved "https://registry.npmjs.org/react-native-zip-archive/-/react-native-zip-archive-7.0.2.tgz"
   integrity sha512-msCRJMcwH6NVZ2/zoC+1nvA0wlpYRnMxteQywS9nt4BzXn48tZpaVtE519QEZn0xe3ygvgsWx5cdPoE9Jx3bsg==
 
-react-native@*, react-native@^*, "react-native@^0.0.0-0 || >=0.65 <1.0", "react-native@>= 0.61.5", react-native@>=0.35, react-native@>=0.57.0, react-native@>=0.60.0, react-native@>=0.66.0, react-native@>=0.70.3, react-native@>=0.74.0, "react-native@>=0.8.0 || 0.8.0-rc || 0.8.0-rc.2 || 0.9.0-rc || 0.10.1", react-native@0.81.4:
+react-native@*, react-native@^*, "react-native@^0.0.0-0 || >=0.65 <1.0", "react-native@>= 0.61.5", react-native@>=0.35, react-native@>=0.57.0, react-native@>=0.60.0, react-native@>=0.66.0, react-native@>=0.70.3, react-native@>=0.74.0, react-native@>=0.79.0, "react-native@>=0.8.0 || 0.8.0-rc || 0.8.0-rc.2 || 0.9.0-rc || 0.10.1", react-native@0.81.4:
   version "0.81.4"
   resolved "https://registry.npmjs.org/react-native/-/react-native-0.81.4.tgz"
   integrity sha512-bt5bz3A/+Cv46KcjV0VQa+fo7MKxs17RCcpzjftINlen4ZDUl0I6Ut+brQ2FToa5oD0IB0xvQHfmsg2EDqsZdQ==

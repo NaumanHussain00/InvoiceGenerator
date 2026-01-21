@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { generateCreditHtml } from '../../services/OfflineService';
+import { generateCreditHtml, voidCredit } from '../../services/OfflineService';
 import RNPrint from 'react-native-print';
 import { colors, spacing, typography } from '../../theme/theme';
 import { RouteProp } from '@react-navigation/native';
@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type RootStackParamList = {
   CreditViewer: { creditId: string };
+  CreditForm: { creditId: number; isEdit: boolean };
 };
 
 type CreditViewerRouteProp = RouteProp<RootStackParamList, 'CreditViewer'>;
@@ -77,6 +78,37 @@ const CreditViewer: React.FC<CreditViewerProps> = ({ route, navigation }) => {
     }
   };
 
+  const handleEdit = () => {
+      navigation.navigate('CreditForm', { creditId: Number(creditId), isEdit: true });
+  };
+
+  const handleVoid = () => {
+    Alert.alert(
+      'Void Credit Note',
+      'Are you sure you want to void this credit note? This will reverse the transaction and update the customer balance. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Void Credit',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const result = await voidCredit(Number(creditId));
+              if (result.success) {
+                Alert.alert('Success', 'Credit note voided successfully.');
+                fetchCreditHTML(); // Refresh to show VOID status
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to void credit note.');
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -134,9 +166,23 @@ const CreditViewer: React.FC<CreditViewerProps> = ({ route, navigation }) => {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Credit #{creditId}</Text>
-        <TouchableOpacity onPress={handlePrint} style={styles.printButton}>
-          <Text style={styles.printButtonText}>🖨️ Print</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity 
+            onPress={handleVoid} 
+            style={[styles.printButton, { backgroundColor: '#ff4444', marginRight: 8 }]}
+          >
+            <Text style={styles.printButtonText}>Void</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={handleEdit} 
+            style={[styles.printButton, { backgroundColor: '#4A90E2', marginRight: 8 }]}
+          >
+            <Text style={styles.printButtonText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handlePrint} style={styles.printButton}>
+            <Text style={styles.printButtonText}>🖨️ Print</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <WebView
         originWhitelist={['*']}

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import CustomerSection from '../../generateInvoice/invoice/customerSection/CustomerSection';
-import { createCredit, generateCreditHtml } from '../../../../services/OfflineService';
+import { createCredit, generateCreditHtml, getCreditDetails, updateCredit } from '../../../../services/OfflineService';
 
 interface CustomerData {
   name: string;
@@ -21,7 +21,9 @@ interface CustomerData {
   balance: string;
 }
 
-const CreditForm: React.FC = () => {
+const CreditForm: React.FC<any> = ({ route, navigation }) => {
+  const { creditId: paramCreditId, isEdit } = route.params || {};
+
   const [customerData, setCustomerData] = useState<CustomerData>({
     name: '',
     phone: '',
@@ -36,6 +38,35 @@ const CreditForm: React.FC = () => {
   const [creditId, setCreditId] = useState<number | null>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (isEdit && paramCreditId) {
+      loadCreditDetails(paramCreditId);
+    }
+  }, [isEdit, paramCreditId]);
+
+  const loadCreditDetails = async (id: number) => {
+    try {
+      const result = await getCreditDetails(id);
+      if (result.success && result.data) {
+        const { amountPaidByCustomer, customer } = result.data;
+        setCreditId(id);
+        setAmountPaid(amountPaidByCustomer.toString());
+        if (customer) {
+          setCustomerId(customer.id);
+          setCustomerData({
+             name: customer.name,
+             phone: customer.phone,
+             firm: customer.firm || '',
+             balance: customer.balance?.toString() || '0', 
+          });
+        }
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to load credit details');
+      navigation.goBack();
+    }
+  };
+
   const handleCreateCredit = async () => {
     if (!customerId) {
       Alert.alert('Error', 'Please select a customer first');
@@ -49,13 +80,20 @@ const CreditForm: React.FC = () => {
 
     try {
       setCreating(true);
-      console.log('[Credit] Creating offline credit...');
+      console.log(isEdit ? '[Credit] Updating credit...' : '[Credit] Creating offline credit...');
 
-      const response = await createCredit(Number(customerId), parseFloat(amountPaid));
-
+      let response;
+      if (isEdit && creditId) {
+         response = await updateCredit(Number(creditId), parseFloat(amountPaid));
+      } else {
+         response = await createCredit(Number(customerId), parseFloat(amountPaid));
+      }
       if (response && response.success && response.data) {
         setCreditId(response.data.id);
-        Alert.alert('Success', response.message || 'Credit created successfully');
+        Alert.alert('Success', response.message || (isEdit ? 'Credit updated successfully' : 'Credit created successfully'));
+        if (isEdit) {
+           navigation.goBack();
+        }
       } else {
         throw new Error(response?.message || 'Failed to create credit');
       }
@@ -161,7 +199,7 @@ const CreditForm: React.FC = () => {
             {creating ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitText}>Create Credit</Text>
+              <Text style={styles.submitText}>{isEdit ? 'Update Credit' : 'Create Credit'}</Text>
             )}
           </TouchableOpacity>
 

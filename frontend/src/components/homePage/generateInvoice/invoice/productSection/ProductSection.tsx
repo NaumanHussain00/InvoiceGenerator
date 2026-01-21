@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getProducts } from '../../../../../services/OfflineService';
+import { getProducts, addProduct } from '../../../../../services/OfflineService';
 
 import {
   View,
@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  Modal,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -212,13 +213,62 @@ const ProductSection: React.FC<ProductSectionProps> = ({
     }
   };
 
+  // --- Add New Product Logic ---
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: '', price: '' });
+
+  const handleSaveNewProduct = async () => {
+    const { name, price } = newProduct;
+    if (!name.trim()) {
+      Alert.alert('Validation Error', 'Please enter product name.');
+      return;
+    }
+    
+    try {
+      const payload = {
+        name: name.trim(),
+        price: Number(price) || 0,
+      };
+
+      const res = await addProduct(payload);
+      if (res.success && res.data) {
+        Alert.alert('Success', 'Product added successfully!');
+        // Auto-select for the form
+        // res.data is ApiProduct { id, name, price, ... }
+        // We need to set it as currentProduct
+        const p = res.data;
+        setCurrentProduct({
+          ...initialProductState,
+          name: p.name,
+          price: String(p.price),
+          id: String(p.id),
+          quantity: '1',
+          total: Number(p.price),
+        });
+        
+        setShowAddModal(false);
+        setNewProduct({ name: '', price: '' });
+        // Refresh products list for dropdown
+        fetchProducts(); 
+      }
+    } catch (err: any) {
+       Alert.alert('Error', err.message);
+    }
+  };
+
   const grandTotal = products.reduce((sum, p) => sum + (p.total || 0), 0);
+  const totalQuantity = products.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
 
   const renderInputForm = () => (
     <View style={styles.cardContainer}>
       <View style={styles.card}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{editingId ? 'Edit Product' : 'Add Product'}</Text>
+          {!editingId && (
+             <TouchableOpacity onPress={() => setShowAddModal(true)} style={styles.headerAddBtn}>
+                <Text style={styles.headerAddBtnText}>+ Add New Product</Text>
+             </TouchableOpacity>
+          )}
           {editingId && (
             <TouchableOpacity onPress={handleCancelEdit} style={styles.removeBtn}>
               <Text style={styles.removeText}>Cancel</Text>
@@ -276,6 +326,16 @@ const ProductSection: React.FC<ProductSectionProps> = ({
               ) : allProducts.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.noData}>No products found</Text>
+                  <TouchableOpacity
+                    style={styles.changeBtn}
+                    onPress={() => {
+                      setShowDropdown(false);
+                      setShowAddModal(true);
+                      setNewProduct(prev => ({ ...prev, name: searchQuery })); // Pre-fill name
+                    }}
+                  >
+                    <Text style={styles.changeBtnText}>+ Add New Product</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.closeOnlyBtn}
                     onPress={() => {
@@ -370,17 +430,25 @@ const ProductSection: React.FC<ProductSectionProps> = ({
   );
 
   const renderTableRow = ({ item, index }: { item: Product; index: number }) => (
-    <TouchableOpacity onPress={() => handleEditItem(item)} style={styles.tableRow}>
-      <Text style={[styles.tableCell, styles.tableCellIndex]}>{index + 1}</Text>
-      <Text style={[styles.tableCell, styles.tableCellName]} numberOfLines={1}>{item.name}</Text>
-      <Text style={[styles.tableCell, styles.tableCellPrice]}>₹{item.price || '0'}</Text>
-      <Text style={[styles.tableCell, styles.tableCellQty]}>{item.quantity || '0'}</Text>
+    <View style={styles.tableRow}>
+      <TouchableOpacity 
+        onPress={() => handleEditItem(item)} 
+        style={{ flexDirection: 'row', width: '90%', alignItems: 'center' }}
+      >
+        <Text style={[styles.tableCell, styles.tableCellIndex]}>{index + 1}</Text>
+        <Text style={[styles.tableCell, styles.tableCellName]} numberOfLines={1}>{item.name}</Text>
+        <Text style={[styles.tableCell, styles.tableCellPrice]}>₹{item.price || '0'}</Text>
+        <Text style={[styles.tableCell, styles.tableCellQty]}>{item.quantity || '0'}</Text>
+        <Text style={[styles.tableCell, styles.tableCellTotal]}>₹{item.total.toFixed(2)}</Text>
+      </TouchableOpacity>
 
-      <Text style={[styles.tableCell, styles.tableCellTotal]}>₹{item.total.toFixed(2)}</Text>
-      <TouchableOpacity onPress={() => handleRemoveItem(item.id)} style={[styles.tableCellAction, { padding: 5 }]}>
+      <TouchableOpacity 
+        onPress={() => handleRemoveItem(item.id)} 
+        style={[styles.tableCellAction, { padding: 5, width: '10%' }]}
+      >
         <Text style={{ color: '#ef4444', fontSize: 12 }}>✕</Text>
       </TouchableOpacity>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -428,8 +496,53 @@ const ProductSection: React.FC<ProductSectionProps> = ({
 
       <View style={styles.grandBox}>
         <Text style={styles.grandLabel}>Total:</Text>
-        <Text style={styles.grandValue}>₹{grandTotal.toFixed(2)}</Text>
+          <Text style={styles.grandValue}>₹{grandTotal.toFixed(2)}</Text>
       </View>
+      <View style={styles.grandBox}>
+        <Text style={styles.grandLabel}>Total Quantity:</Text>
+          <Text style={styles.grandValue}>{totalQuantity}</Text>
+      </View>
+
+      {/* Add Product Modal */}
+      <Modal visible={showAddModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ScrollView>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalHeader}>Add New Product</Text>
+                <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                  <Text style={{ fontSize: scale(18), color: '#64748b' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputBox}>
+                <Text style={styles.label}>Product Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={newProduct.name}
+                  onChangeText={t => setNewProduct(prev => ({ ...prev, name: t }))}
+                  placeholder="Enter Product Name"
+                />
+              </View>
+
+              <View style={styles.inputBox}>
+                <Text style={styles.label}>Price (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={newProduct.price}
+                  onChangeText={t => setNewProduct(prev => ({ ...prev, price: t }))}
+                  placeholder="0"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveNewProduct}>
+                <Text style={styles.saveBtnText}>Save & Select</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -770,6 +883,67 @@ const styles = StyleSheet.create({
     fontSize: scale(14),
     fontWeight: '700',
     color: '#1e293b',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: scale(20),
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: scale(10),
+    padding: scale(16),
+    maxHeight: '90%',
+    elevation: 5,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: scale(16),
+  },
+  modalHeader: {
+    fontSize: scale(18),
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  saveBtn: {
+    backgroundColor: '#3b82f6',
+    paddingVertical: scale(12),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    marginTop: scale(16),
+  },
+  saveBtnText: {
+    color: '#fff',
+    fontSize: scale(16),
+    fontWeight: '700',
+  },
+  headerAddBtn: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(6),
+    borderRadius: scale(6),
+  },
+  headerAddBtnText: {
+    color: '#fff',
+    fontSize: scale(12),
+    fontWeight: '600',
+  },
+  changeBtn: {
+    backgroundColor: '#3b82f6', 
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(6),
+    borderRadius: scale(6),
+    marginTop: scale(8),
+    marginBottom: scale(4),
+  },
+  changeBtnText: {
+    color: '#fff',
+    fontSize: scale(12),
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 
